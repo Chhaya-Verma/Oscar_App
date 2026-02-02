@@ -2,19 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-
-// Define the navigation stack types
-type RootStackParamList = {
-  Landing: undefined;
-  Recording: undefined;
-};
+import { useAuth } from '@/context/AuthContext';
+import type { RootStackParamList } from '@/types/navigation';
+import Icon from 'react-native-vector-icons/Ionicons';
+import AppShell from '@/components/AppShell';
 
 type LandingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Landing'>;
-
-interface LandingPageProps {
-  onNext?: () => void;
-  onSettings?: () => void;
-}
 
 const FLIP_TEXTS = [
   'Let AI refine.',
@@ -23,8 +16,9 @@ const FLIP_TEXTS = [
   'Create effortlessly.'
 ];
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNext, onSettings }) => {
+const LandingPage: React.FC = () => {
   const navigation = useNavigation<LandingScreenNavigationProp>();
+  const { user } = useAuth(); 
   const [fadeIndex, setFadeIndex] = useState(0);
   const fadeTextAnim = useRef(new Animated.Value(1)).current;
 
@@ -46,91 +40,58 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNext, onSettings }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle mic button click
+  const handleMicPress = () => {
+    if (user) {
+      // If user logged Then Recording screen
+      navigation.navigate('Recording');
+    } else {
+      // If user logged out Then Auth screen
+      navigation.navigate('Auth');
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Brand Badge */}
-      <View style={styles.brandBadge}>
-        <View style={styles.brandRow}>
-          <Text style={styles.brandMic}>🎤</Text>
-          <Text style={styles.brandText}>OSCAR</Text>
+    <AppShell showUtilities={true}>
+      <View style={styles.container}>
+        {/* Main Content */}
+        <View style={styles.mainContent}>
+          <Text style={styles.title}>
+            Bring your ideas to light.
+          </Text>
+          <View style={styles.accentPill}>
+            <Animated.Text
+              key={fadeIndex}
+              style={[
+                styles.accentText,
+                { opacity: fadeTextAnim }
+              ]}
+            >
+              {FLIP_TEXTS[fadeIndex]}
+            </Animated.Text>
+          </View>
         </View>
-      </View>
 
-      {/* Main Content */}
-      <View style={styles.mainContent}>
-        <Text style={styles.title}>
-          Bring your ideas to light.
-        </Text>
-        <View style={styles.accentPill}>
-          <Animated.Text
-            key={fadeIndex}
-            style={[
-              styles.accentText,
-              { opacity: fadeTextAnim }
-            ]}
-          >
-            {FLIP_TEXTS[fadeIndex]}
-          </Animated.Text>
-        </View>
-      </View>
-
-      {/* Start Button */}
-      <TouchableOpacity
-        style={styles.startButton}
-        onPress={() => navigation.navigate('Recording')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.startIcon}>🎤</Text>
-      </TouchableOpacity>
-
-      {/* Utility Buttons */}
-      <View style={styles.utilities}>
-        <TouchableOpacity style={styles.utilityBtn} activeOpacity={0.8}>
-          <Text style={styles.utilityIcon}>📄</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.utilityBtn}
-          onPress={onSettings}
-          activeOpacity={0.8}
+        {/* Start Button - */}
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={handleMicPress}
+          activeOpacity={0.85}
         >
-          <Text style={styles.utilityIcon}>⚙️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.utilityBtn} activeOpacity={0.8}>
-          <Text style={styles.utilityIcon}>↪️</Text>
+          <Icon name="mic-outline" size={32} color="#002B36" />
         </TouchableOpacity>
       </View>
-    </View>
+    </AppShell>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandBadge: {
-    position: 'absolute',
-    top: 60,
-    left: 24,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  brandMic: {
-    fontSize: 16,
-    color: '#00D9FF',
-  },
-  brandText: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
+  
   mainContent: {
     alignItems: 'center',
     paddingHorizontal: 30,
@@ -145,11 +106,11 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   accentPill: {
-    backgroundColor: '#00D9FF',
+    backgroundColor: '#22d3ee',
     borderRadius: 6,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    shadowColor: '#00D9FF',
+    shadowColor: '#22d3ee',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -158,7 +119,7 @@ const styles = StyleSheet.create({
   accentText: {
     fontSize: 20,
     fontWeight: '500',
-    color: '#002B36',
+    color: '#020617',
   },
   startButton: {
     position: 'absolute',
@@ -166,44 +127,14 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#00D9FF',
+    backgroundColor: '#22d3ee',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00D9FF',
+    shadowColor: '#22d3ee',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6,
     shadowRadius: 25,
     elevation: 25,
-  },
-  startIcon: {
-    fontSize: 28,
-    color: '#002B36',
-  },
-  utilities: {
-    position: 'absolute',
-    bottom: 60,
-    right: 24,
-    flexDirection: 'column',
-    gap: 16,
-  },
-  utilityBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#00D9FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    shadowColor: '#00D9FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  utilityIcon: {
-    fontSize: 20,
-    color: '#00D9FF',
   },
 });
 

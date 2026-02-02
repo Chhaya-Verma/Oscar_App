@@ -4,8 +4,13 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import AppShell from '@/components/AppShell';
 
 type Props = {
   isRecording?: boolean;
@@ -16,54 +21,61 @@ export default function RecordingScreen({
   isRecording = false,
   recordingTime = 0,
 }: Props) {
+  const { user } = useAuth();
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            Record Your <Text style={styles.highlight}>Voice</Text>
-          </Text>
-        </View>
-
-        {/* Main Card */}
-        <View style={styles.card}>
-          {/* Timer */}
-          <View style={styles.timerContainer}>
-            {isRecording && (
-              <Text style={styles.timerText}>
-                {formatTime(recordingTime)}
-              </Text>
-            )}
-          </View>
-
-          {/* Mic Button */}
-          <View style={styles.controls}>
-            <Pressable
-              style={[
-                styles.micButton,
-                isRecording && styles.micButtonActive,
-              ]}
-              onPress={() => {}}
-            >
-              <Text style={styles.micIcon}>
-                {isRecording ? "■" : "🎤"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Instruction */}
-          {!isRecording && (
-            <View style={styles.instruction}>
-              <Text style={styles.instructionText}>
-                Press the microphone button and start speaking.
-                {"\n"}Oscar will do the rest.
+    <AppShell showUtilities={true}>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.header}>
+              <Text style={styles.title}>
+                Record Your <Text style={styles.highlight}>Voice</Text>
               </Text>
             </View>
-          )}
+          </View>
+
+          {/* Main Card */}
+          <View style={styles.card}>
+            {/* Timer */}
+            <View style={styles.timerContainer}>
+              {isRecording && (
+                <Text style={styles.timerText}>
+                  {formatTime(recordingTime)}
+                </Text>
+              )}
+            </View>
+
+            {/* Mic Button */}
+            <View style={styles.controls}>
+              <Pressable
+                style={[
+                  styles.micButton,
+                  isRecording && styles.micButtonActive,
+                ]}
+                onPress={() => {}}
+              >
+                <Icon 
+                  name={isRecording ? "stop" : "mic-outline"} 
+                  size={36} 
+                  color="#000" 
+                />
+              </Pressable>
+            </View>
+
+            {/* Instruction */}
+            {!isRecording && (
+              <View style={styles.instruction}>
+                <Text style={styles.instructionText}>
+                  Press the microphone button and start speaking.
+                  {"\n"}Oscar will do the rest.
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -77,18 +89,24 @@ function formatTime(seconds: number) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#000",
   },
   container: {
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 32,
+    paddingTop: 40,
   },
 
+  headerContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 80,
+    marginBottom: 16,
+  },
   header: {
-    marginTop: 24,
-    marginBottom: 32,
+    flex: 1,
   },
   title: {
     fontSize: 32,
@@ -97,14 +115,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   highlight: {
-    color: "#22d3ee", // cyan-400
+    color: "#22d3ee",
   },
 
   card: {
     width: "100%",
     maxWidth: 420,
     aspectRatio: 1,
-    backgroundColor: "#0f172a", // slate-900
+    backgroundColor: "#0f172a",
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
@@ -136,13 +154,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   micButtonActive: {
-    backgroundColor: "#ef4444", // red when recording
+    backgroundColor: "#ef4444",
   },
-  micIcon: {
-    fontSize: 36,
-    color: "#000",
-  },
-
   instruction: {
     height: 64,
     alignItems: "center",
