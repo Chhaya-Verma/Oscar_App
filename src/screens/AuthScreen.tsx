@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '@/types/navigation';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 type AuthScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Auth'>;
 
@@ -59,8 +60,8 @@ export default function AuthScreen() {
         if (error) {
           setError(error.message);
         } else {
-          // Successfully logged in, navigate to Recording
-          navigation.navigate('Recording');
+          // Successfully logged in, navigate to Landing
+          navigation.navigate('Landing');
         }
       }
     } catch (err) {
@@ -83,6 +84,14 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {/* Header with OSCAR Logo */}
+      <View style={styles.logoHeader}>
+        <View style={styles.logoContainer}>
+          <Icon name="mic-outline" size={24} color="#22d3ee" />
+          <Text style={styles.logoText}>OSCAR</Text>
+        </View>
+      </View>
+
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
@@ -192,6 +201,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  logoHeader: {
+    position: 'absolute',
+    top: 60,
+    left: 24,
+    zIndex: 10,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: '#ffffff',
+    opacity: 0.9,
   },
   scrollContainer: {
     flexGrow: 1,
