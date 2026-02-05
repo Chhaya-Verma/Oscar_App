@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,63 +7,137 @@ import {
   TouchableOpacity,
   SafeAreaView,
   TextInput,
-  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
+import { useNotes } from '@/hooks/useNotes';
+import { useAuth } from '@/context/AuthContext';
+import type { Note } from '@/services/notes.service';
 
-type Note = {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  isStarred: boolean;
-};
+type NotesScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Notes'
+>;
 
-const DUMMY_NOTES: Note[] = [
-  {
-    id: '1',
-    title: 'Product Launch Strategy',
-    content:
-      'Discuss the key points for launching the new product line. Focus on market positioning, target audience, and competitive analysis. Timeline should be finalized by end of quarter...',
-    createdAt: 'Jan 15, 2025 2:30 PM',
-    isStarred: true,
-  },
-  {
-    id: '2',
-    title: 'Meeting Notes - Team Sync',
-    content:
-      'Quick sync with the team about upcoming project milestones. Discussed deliverables, timeline, and resource allocation. Action items assigned to respective team members...',
-    createdAt: 'Jan 12, 2025 11:00 AM',
-    isStarred: false,
-  },
-];
+type SortOption = 'created' | 'updated' | 'length';
 
 export default function NotesScreen() {
-  const navigation = useNavigation();
-  const [notes, setNotes] = useState<Note[]>(DUMMY_NOTES);
+  const navigation = useNavigation<NotesScreenNavigationProp>();
+  const { notes, loading, refetch, toggleStar, removeNote, search } =
+    useNotes();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnlyStarred, setShowOnlyStarred] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('created');
+  const [displayedNotes, setDisplayedNotes] = useState<Note[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
 
-  const filteredNotes = notes.filter((note) => {
-    const matchesSearch =
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStarred = !showOnlyStarred || note.isStarred;
-    return matchesSearch && matchesStarred;
-  });
+  // Refetch notes when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetch();
+      }
+    }, [user, refetch])
+  );
 
-  const handleToggleStar = (id: string) => {
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, isStarred: !note.isStarred } : note
-      )
-    );
+  // Handle search and filtering with sorting
+  useEffect(() => {
+    async function filterAndSearch() {
+      setIsSearching(true);
+      let filtered = notes;
+
+      // Apply search query
+      if (searchQuery.trim()) {
+        const searchResults = await search(searchQuery);
+        filtered = searchResults;
+      }
+
+      // Apply starred filter
+      if (showOnlyStarred) {
+        filtered = filtered.filter((note) => note.is_starred);
+      }
+
+      // Apply sorting
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'created':
+            comparison =
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime();
+            break;
+          case 'updated':
+            comparison =
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime();
+            break;
+          case 'length':
+            const aLength = (a.content || '').length;
+            const bLength = (b.content || '').length;
+            comparison = bLength - aLength;
+            break;
+        }
+        if (comparison === 0) {
+          comparison = a.id.localeCompare(b.id);
+        }
+        return comparison;
+      });
+
+      setDisplayedNotes(filtered);
+      setIsSearching(false);
+    }
+
+    filterAndSearch();
+  }, [searchQuery, showOnlyStarred, sortBy, notes, search]);
+
+  const handleToggleStar = async (id: string, isStarred: boolean) => {
+    const result = await toggleStar(id, isStarred);
+    if (!result) {
+      Alert.alert('Error', 'Failed to update star status');
+    }
   };
 
-  const handleDeleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((note) => note.id !== id));
+  const handleDeleteNote = async (id: string) => {
+    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
+      {
+        text: 'Cancel',
+        onPress: () => {},
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        onPress: async () => {
+          const success = await removeNote(id);
+          if (!success) {
+            Alert.alert('Error', 'Failed to delete note');
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   const renderNoteCard = ({ item }: { item: Note }) => (
@@ -71,7 +145,7 @@ export default function NotesScreen() {
       style={styles.noteCard}
       activeOpacity={0.8}
       onPress={() => {
-        // Navigate to detail page
+        navigation.navigate('NoteDetail', { noteId: item.id });
       }}
     >
       <View style={styles.noteHeader}>
@@ -79,17 +153,17 @@ export default function NotesScreen() {
           <Text style={styles.noteTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <Text style={styles.noteDate}>{item.createdAt}</Text>
+          <Text style={styles.noteDate}>{formatDate(item.created_at)}</Text>
         </View>
         <View style={styles.noteActions}>
           <TouchableOpacity
-            onPress={() => handleToggleStar(item.id)}
+            onPress={() => handleToggleStar(item.id, item.is_starred)}
             style={styles.actionButton}
           >
             <Icon
-              name={item.isStarred ? 'star' : 'star-outline'}
+              name={item.is_starred ? 'star' : 'star-outline'}
               size={18}
-              color={item.isStarred ? '#22d3ee' : '#9ca3af'}
+              color={item.is_starred ? '#22d3ee' : '#9ca3af'}
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -114,43 +188,123 @@ export default function NotesScreen() {
           <Text style={styles.headerTitle}>Your Notes</Text>
         </View>
 
-        {notes.length > 0 && (
-          <View style={styles.filterBar}>
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <Icon
-                name="search"
-                size={16}
-                color="#6b7280"
-                style={styles.searchIcon}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search notes..."
-                placeholderTextColor="#6b7280"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
+        {!user ? (
+          <View style={styles.emptyState}>
+            <Icon name="log-in-outline" size={48} color="#4b5563" />
+            <Text style={styles.emptyStateText}>
+              Please sign in to view your notes
+            </Text>
+          </View>
+        ) : loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#22d3ee" />
+            <Text style={styles.loadingText}>Loading your notes...</Text>
+          </View>
+        ) : displayedNotes.length > 0 ? (
+          <>
+            <View style={styles.filterBar}>
+              {/* Search Input */}
+              <View style={styles.searchContainer}>
+                <Icon
+                  name="search"
+                  size={16}
+                  color="#6b7280"
+                  style={styles.searchIcon}
+                />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search notes..."
+                  placeholderTextColor="#6b7280"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+
+              {/* Sort Dropdown Button */}
+              <TouchableOpacity
+                style={styles.sortButton}
+                onPress={() => setShowSortModal(true)}
+              >
+                <Icon
+                  name="funnel"
+                  size={16}
+                  color="#9ca3af"
+                />
+                <Text style={styles.sortButtonText}>
+                  {sortBy === 'created' && 'Date'}
+                  {sortBy === 'updated' && 'Updated'}
+                  {sortBy === 'length' && 'Length'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Starred Filter Button */}
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  showOnlyStarred && styles.filterButtonActive,
+                ]}
+                onPress={() => setShowOnlyStarred(!showOnlyStarred)}
+              >
+                <Icon
+                  name={showOnlyStarred ? 'star' : 'star-outline'}
+                  size={18}
+                  color={showOnlyStarred ? '#22d3ee' : '#9ca3af'}
+                />
+              </TouchableOpacity>
             </View>
 
-            {/* Starred Filter Button */}
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                showOnlyStarred && styles.filterButtonActive,
-              ]}
-              onPress={() => setShowOnlyStarred(!showOnlyStarred)}
+            {/* Sort Modal */}
+            <Modal
+              visible={showSortModal}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowSortModal(false)}
             >
-              <Icon
-                name={showOnlyStarred ? 'star' : 'star-outline'}
-                size={18}
-                color={showOnlyStarred ? '#22d3ee' : '#9ca3af'}
-              />
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => setShowSortModal(false)}
+              >
+                <View style={styles.sortModal}>
+                  <Text style={styles.sortModalTitle}>Sort by</Text>
+                  {(['created', 'updated', 'length'] as const).map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={styles.sortModalOption}
+                      onPress={() => {
+                        setSortBy(option);
+                        setShowSortModal(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.sortModalOptionText,
+                          sortBy === option &&
+                            styles.sortModalOptionTextActive,
+                        ]}
+                      >
+                        {option === 'created' && 'Date Created'}
+                        {option === 'updated' && 'Date Updated'}
+                        {option === 'length' && 'Length'}
+                      </Text>
+                      {sortBy === option && (
+                        <Icon name="checkmark" size={18} color="#22d3ee" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </Modal>
 
-        {filteredNotes.length === 0 ? (
+            <FlatList
+              data={displayedNotes}
+              renderItem={renderNoteCard}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={true}
+              contentContainerStyle={styles.listContent}
+            />
+          </>
+        ) : (
           <View style={styles.emptyState}>
             <Icon name="document-outline" size={48} color="#4b5563" />
             <Text style={styles.emptyStateText}>
@@ -164,14 +318,6 @@ export default function NotesScreen() {
               </TouchableOpacity>
             )}
           </View>
-        ) : (
-          <FlatList
-            data={filteredNotes}
-            renderItem={renderNoteCard}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={true}
-            contentContainerStyle={styles.listContent}
-          />
         )}
       </SafeAreaView>
     </AppShell>
@@ -181,13 +327,13 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 40,
+    
   },
   header: {
     paddingVertical: 16,
     paddingHorizontal: 16,
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 5,
   },
   headerTitle: {
     fontSize: 28,
@@ -233,6 +379,59 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: 'rgba(34, 211, 238, 0.2)',
     borderColor: 'rgba(34, 211, 238, 0.6)',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.3)',
+    backgroundColor: '#1e293b',
+    gap: 6,
+  },
+  sortButtonText: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  sortModal: {
+    backgroundColor: '#1e293b',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(34, 211, 238, 0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    maxHeight: '60%',
+  },
+  sortModalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  sortModalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(34, 211, 238, 0.1)',
+  },
+  sortModalOptionText: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  sortModalOptionTextActive: {
+    color: '#22d3ee',
+    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -283,6 +482,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
     lineHeight: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    marginTop: 12,
   },
   emptyState: {
     flex: 1,

@@ -95,11 +95,12 @@ const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 100,
     backgroundColor: '#020617',
   },
   header: {
     position: 'absolute',
-    top: 60,
+    top: 40,
     left: 24,
     zIndex: 10,
   },

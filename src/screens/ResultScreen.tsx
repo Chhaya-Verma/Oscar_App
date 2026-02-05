@@ -16,6 +16,7 @@ import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/context/AuthContext';
+import { createNote } from '@/services/notes.service';
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;
 type ResultScreenNavigationProp = NativeStackNavigationProp<
@@ -56,10 +57,27 @@ export default function ResultScreen() {
       }
 
       // Save note to Supabase
-      Alert.alert('Success', 'Note saved! This feature is coming soon.');
+      const { note, error } = await createNote({
+        title: title || 'Untitled Note',
+        content: formattedText,
+        raw_content: rawText,
+        is_starred: false,
+      });
 
-      // Optionally navigate back to Recording screen
-      navigation.navigate('Recording');
+      if (error) {
+        Alert.alert('Save failed', error.message);
+        return;
+      }
+
+      Alert.alert('Success', 'Note saved successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigate back to Recording screen
+            navigation.navigate('Recording');
+          },
+        },
+      ]);
     } catch (error: any) {
       Alert.alert('Save failed', error.message);
     } finally {

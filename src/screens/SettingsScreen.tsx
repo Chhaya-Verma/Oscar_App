@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 32,
-    marginTop: 100,
+    marginTop: 5,
   },
   title: {
     fontSize: 28,
