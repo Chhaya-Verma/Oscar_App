@@ -1,0 +1,113 @@
+## ✅ Vocabulary Feature Implementation Complete
+
+### Files Created/Modified:
+
+#### 1. **NEW: `/src/types/vocabulary.types.ts`**
+- `VocabularyEntry` - Database record with id, user_id, term, pronunciation, context, timestamps
+- `VocabularyInsert` - For adding new entries
+- `VocabularyUpdate` - For updating existing entries
+
+#### 2. **NEW: `/src/services/vocabulary.service.ts`**
+Complete Supabase CRUD service with:
+- `getVocabulary()` - Fetch all user vocabulary entries
+- `addVocabularyEntry()` - Add new vocabulary
+- `updateVocabularyEntry()` - Update existing vocabulary
+- `deleteVocabularyEntry()` - Delete vocabulary
+- `getVocabularyCount()` - Get vocabulary count
+
+#### 3. **UPDATED: `/src/constants/index.ts`**
+Added:
+- `SUBSCRIPTION_CONFIG` - Free (5 entries) vs Pro (50 entries) limits
+- New error messages for vocabulary operations
+
+#### 4. **UPDATED: `/src/screens/SettingsScreen.tsx`**
+Changes:
+- Added `useAuth()` for user authentication
+- Integrated `vocabularyService` for Supabase operations
+- Added `useEffect` to load vocabulary on mount
+- Replaced local state with Supabase CRUD operations
+- Added vocabulary limit enforcement
+- Proper error handling with meaningful messages
+- Form fields disable during loading/adding
+
+---
+
+### 🔄 How It Works:
+
+```
+User Opens Settings
+    ↓
+useEffect loads vocabulary from Supabase
+    ↓
+Display vocabulary list with add form
+    ↓
+User adds term → Saved to Supabase
+    ↓
+Backend fetches vocabulary when formatting
+    ↓
+DeepSeek gets enhanced prompt with user vocabulary
+    ↓
+Better speech-to-text results!
+```
+
+---
+
+### 📊 Workflow Integration:
+
+**Recording Flow:**
+```
+User speaks → Raw transcript created → Navigate to Result screen
+    ↓
+Call AI formatting API → Backend fetches user vocabulary
+    ↓
+Build prompt with vocabulary → Send to DeepSeek
+    ↓
+Get corrected text → Display formatted result
+```
+
+---
+
+### ✨ Features Implemented:
+
+✅ **Real Supabase Storage** - Data persists in database
+✅ **User Authentication** - Vocabulary tied to user account
+✅ **CRUD Operations** - Add, edit, delete entries
+✅ **Subscription Limits** - Free (5) vs Pro (50) entries
+✅ **Error Handling** - Meaningful error messages
+✅ **Loading States** - Spinners during operations
+✅ **Form Validation** - Term required, limits checked
+✅ **Responsive UI** - Disable inputs while loading
+
+---
+
+### 🚀 Backend Already Supports:
+
+✅ Format API fetches vocabulary from Supabase
+✅ `buildFormatPromptWithVocabulary()` injects vocabulary
+✅ DeepSeek receives enhanced prompt with user terms
+✅ No backend changes needed!
+
+---
+
+### 📝 Database Requirements:
+
+Ensure Supabase has `user_vocabulary` table with:
+```
+- id (UUID, primary key)
+- user_id (UUID, foreign key to auth.users)
+- term (text)
+- pronunciation (text, nullable)
+- context (text, nullable)
+- created_at (timestamp)
+- updated_at (timestamp)
+```
+
+---
+
+### 🎯 What's Next:
+
+1. Add Supabase RLS policies for user privacy
+2. Implement subscription context for Pro/Free detection
+3. Add vocabulary export/import functionality
+4. Duplicate term detection on backend
+5. Vocabulary search/filter on large lists
