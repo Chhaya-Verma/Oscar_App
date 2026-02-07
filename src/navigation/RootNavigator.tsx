@@ -5,7 +5,11 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import LandingPage from '@/screens/LandingPage';
 import AuthScreen from '@/screens/AuthScreen';
 import RecordingScreen from '@/screens/RecordingScreen';
+import ProcessingScreen from '@/screens/ProcessingScreen';
+import ResultScreen from '@/screens/ResultScreen';
 import NotesScreen from '@/screens/NotesScreen';
+import NoteDetailScreen from '@/screens/NoteDetailScreen';
+import SettingsScreen from '@/screens/SettingsScreen';
 import type { RootStackParamList } from '@/types/navigation';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -25,12 +29,16 @@ export default function RootNavigator() {
     <Stack.Navigator 
       id="root"
       screenOptions={{ headerShown: false }}
-      initialRouteName={user ? "Recording" : !user ? "Auth" : "Landing"}
+      initialRouteName={user ? "Landing" : "Auth"}
     >
       <Stack.Screen name="Landing" component={LandingPage} />
       <Stack.Screen name="Auth" component={AuthScreen} />
       <Stack.Screen name="Recording" component={RecordingScreen} />
+      <Stack.Screen name="Processing" component={ProcessingScreen} />
+      <Stack.Screen name="Result" component={ResultScreen} />
       <Stack.Screen name="Notes" component={NotesScreen} />
+      <Stack.Screen name="NoteDetail" component={NoteDetailScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }

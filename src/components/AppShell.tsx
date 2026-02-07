@@ -51,28 +51,40 @@ const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) =
         {children}
       </View>
 
-      {/* Utility Buttons - Right Sidebar */}
+      {/* Utility Buttons - Bottom Navigation */}
       {showUtilities && (
-        <View style={styles.utilities}>
+        <View style={styles.bottomNav}>
           <TouchableOpacity 
-            style={styles.utilityBtn} 
+            style={styles.navBtn} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Landing' as never)}
+          >
+            <Icon name="home-outline" size={24} color="#22d3ee" />
+            <Text style={styles.navBtnText}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.navBtn} 
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Notes' as never)}
           >
-            <Icon name="document-outline" size={20} color="#22d3ee" />
+            <Icon name="document-outline" size={24} color="#22d3ee" />
+            <Text style={styles.navBtnText}>Notes</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.utilityBtn}
+            style={styles.navBtn}
             activeOpacity={0.8}
+            onPress={() => navigation.navigate('Settings' as never)}
           >
-            <Icon name="settings-outline" size={20} color="#22d3ee" />
+            <Icon name="settings-outline" size={24} color="#22d3ee" />
+            <Text style={styles.navBtnText}>Settings</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.utilityBtn} 
+            style={styles.navBtn} 
             activeOpacity={0.8}
             onPress={handleLogout}
           >
-            <Icon name="log-out-outline" size={20} color="#ef4444" />
+            <Icon name="log-out-outline" size={24} color="#ef4444" />
+            <Text style={[styles.navBtnText, styles.logoutText]}>Logout</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -83,11 +95,12 @@ const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 100,
     backgroundColor: '#020617',
   },
   header: {
     position: 'absolute',
-    top: 60,
+    top: 40,
     left: 24,
     zIndex: 10,
   },
@@ -108,6 +121,31 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(34, 211, 238, 0.2)',
+    paddingVertical: 12,
+    paddingBottom: 20,
+  },
+  navBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  navBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#22d3ee',
+  },
+  logoutText: {
+    color: '#ef4444',
   },
   utilities: {
     position: 'absolute',
