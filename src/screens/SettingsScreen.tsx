@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,24 +15,25 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "@/types/navigation";
 import Icon from "react-native-vector-icons/Ionicons";
 import AppShell from "@/components/AppShell";
+import { useAuth } from "@/context/AuthContext";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { vocabularyService } from "@/services/vocabulary.service";
+import type { VocabularyEntry } from "@/types/vocabulary.types";
+import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from "@/constants";
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "Settings"
 >;
 
-interface VocabularyEntry {
-  id: string;
-  term: string;
-  pronunciation?: string;
-  context?: string;
-}
-
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
+  const { user } = useAuth();
+  const { isProUser } = useSubscription();
+
   const [activeTab, setActiveTab] = useState("vocabulary");
   const [vocabulary, setVocabulary] = useState<VocabularyEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
   // Form state for new entry
@@ -46,31 +47,84 @@ export default function SettingsScreen() {
   const [editPronunciation, setEditPronunciation] = useState("");
   const [editContext, setEditContext] = useState("");
 
+  const vocabularyLimit = isProUser
+    ? SUBSCRIPTION_CONFIG.PRO_MAX_VOCABULARY
+    : SUBSCRIPTION_CONFIG.FREE_MAX_VOCABULARY;
+
+  // Load vocabulary on mount
+  useEffect(() => {
+    if (user) {
+      loadVocabulary();
+    }
+  }, [user]);
+
+  const loadVocabulary = async () => {
+    setIsLoading(true);
+    const { data, error } = await vocabularyService.getVocabulary();
+
+    if (error) {
+      Alert.alert(
+        "Error",
+        ERROR_MESSAGES.VOCABULARY_LOAD_FAILED,
+        [{ text: "OK" }]
+      );
+      console.error("Vocabulary load error:", error);
+    } else {
+      setVocabulary(data || []);
+    }
+    setIsLoading(false);
+  };
+
   const handleAddEntry = async () => {
     if (!newTerm.trim()) {
-      Alert.alert("Error", "Please enter a term");
+      Alert.alert("Error", ERROR_MESSAGES.TERM_REQUIRED);
+      return;
+    }
+
+    if (!user) {
+      Alert.alert("Error", "Please log in to add vocabulary");
+      return;
+    }
+
+    // Check vocabulary limit
+    if (vocabulary.length >= vocabularyLimit) {
+      Alert.alert(
+        "Limit Reached",
+        `${isProUser ? "Pro" : "Free"} plan allows up to ${vocabularyLimit} vocabulary entries. ${
+          isProUser ? "" : "Upgrade to Pro for unlimited entries."
+        }`,
+        [{ text: "OK" }]
+      );
       return;
     }
 
     setIsAdding(true);
     try {
-      // Simulate API call
-      const newEntry: VocabularyEntry = {
-        id: Date.now().toString(),
+      const { data, error } = await vocabularyService.addVocabularyEntry({
+        user_id: user.id,
         term: newTerm.trim(),
-        pronunciation: newPronunciation.trim() || undefined,
-        context: newContext.trim() || undefined,
-      };
+        pronunciation: newPronunciation.trim() || null,
+        context: newContext.trim() || null,
+      });
 
-      setVocabulary([newEntry, ...vocabulary]);
-      setNewTerm("");
-      setNewPronunciation("");
-      setNewContext("");
-
-      Alert.alert(
-        "Success",
-        `"${newEntry.term}" has been added to your vocabulary.`
-      );
+      if (error) {
+        const isDuplicate = error.message?.toLowerCase().includes("duplicate");
+        Alert.alert(
+          "Error",
+          isDuplicate
+            ? ERROR_MESSAGES.DUPLICATE_TERM
+            : ERROR_MESSAGES.VOCABULARY_ADD_FAILED
+        );
+      } else if (data) {
+        setVocabulary([data, ...vocabulary]);
+        setNewTerm("");
+        setNewPronunciation("");
+        setNewContext("");
+        Alert.alert("Success", `"${data.term}" has been added to your vocabulary.`);
+      }
+    } catch (err) {
+      console.error("Add vocabulary error:", err);
+      Alert.alert("Error", ERROR_MESSAGES.VOCABULARY_ADD_FAILED);
     } finally {
       setIsAdding(false);
     }
@@ -84,11 +138,17 @@ export default function SettingsScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
-          onPress: () => {
-            setVocabulary(vocabulary.filter((v) => v.id !== id));
-            Alert.alert("Success", `"${term}" has been removed.`);
-          },
           style: "destructive",
+          onPress: async () => {
+            const { error } = await vocabularyService.deleteVocabularyEntry(id);
+
+            if (error) {
+              Alert.alert("Error", ERROR_MESSAGES.VOCABULARY_DELETE_FAILED);
+            } else {
+              setVocabulary(vocabulary.filter((v) => v.id !== id));
+              Alert.alert("Success", `"${term}" has been removed.`);
+            }
+          },
         },
       ]
     );
@@ -108,27 +168,25 @@ export default function SettingsScreen() {
     setEditContext("");
   };
 
-  const handleUpdateEntry = (id: string) => {
+  const handleUpdateEntry = async (id: string) => {
     if (!editTerm.trim()) {
-      Alert.alert("Error", "Please enter a term");
+      Alert.alert("Error", ERROR_MESSAGES.TERM_REQUIRED);
       return;
     }
 
-    setVocabulary(
-      vocabulary.map((v) =>
-        v.id === id
-          ? {
-              ...v,
-              term: editTerm.trim(),
-              pronunciation: editPronunciation.trim() || undefined,
-              context: editContext.trim() || undefined,
-            }
-          : v
-      )
-    );
+    const { data, error } = await vocabularyService.updateVocabularyEntry(id, {
+      term: editTerm.trim(),
+      pronunciation: editPronunciation.trim() || null,
+      context: editContext.trim() || null,
+    });
 
-    cancelEditing();
-    Alert.alert("Success", `"${editTerm}" has been updated.`);
+    if (error) {
+      Alert.alert("Error", ERROR_MESSAGES.VOCABULARY_UPDATE_FAILED);
+    } else if (data) {
+      setVocabulary(vocabulary.map((v) => (v.id === id ? data : v)));
+      cancelEditing();
+      Alert.alert("Success", `"${data.term}" has been updated.`);
+    }
   };
 
   return (
@@ -207,7 +265,7 @@ export default function SettingsScreen() {
                     <Text style={styles.cardTitle}>Custom Vocabulary</Text>
                   </View>
                   <Text style={styles.entryCount}>
-                    {vocabulary.length}/50 entries
+                    {vocabulary.length}/{vocabularyLimit} entries
                   </Text>
                 </View>
 
@@ -228,6 +286,7 @@ export default function SettingsScreen() {
                       value={newTerm}
                       onChangeText={setNewTerm}
                       maxLength={100}
+                      editable={!isAdding && !isLoading}
                     />
                   </View>
 
@@ -240,6 +299,7 @@ export default function SettingsScreen() {
                       value={newPronunciation}
                       onChangeText={setNewPronunciation}
                       maxLength={100}
+                      editable={!isAdding && !isLoading}
                     />
                   </View>
 
@@ -252,6 +312,7 @@ export default function SettingsScreen() {
                       value={newContext}
                       onChangeText={setNewContext}
                       maxLength={50}
+                      editable={!isAdding && !isLoading}
                     />
                   </View>
 
@@ -266,16 +327,16 @@ export default function SettingsScreen() {
                     {isAdding ? (
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
-                      <Icon
-                        name="add"
-                        size={20}
-                        color="#ffffff"
-                        style={styles.buttonIcon}
-                      />
+                      <>
+                        <Icon
+                          name="add"
+                          size={20}
+                          color="#ffffff"
+                          style={styles.buttonIcon}
+                        />
+                        <Text style={styles.addButtonText}>Add Entry</Text>
+                      </>
                     )}
-                    <Text style={styles.addButtonText}>
-                      {isAdding ? "Adding..." : "Add Entry"}
-                    </Text>
                   </Pressable>
                 </View>
 

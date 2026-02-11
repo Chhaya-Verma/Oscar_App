@@ -50,6 +50,13 @@ export const ERROR_MESSAGES = {
   INVALID_DEEPSEEK_RESPONSE: 'Invalid response from DeepSeek',
   REQUEST_TIMEOUT: 'Request timed out. Please try again.',
   NETWORK_ERROR: 'Network error. Please check your connection.',
+  VOCABULARY_LOAD_FAILED: 'Failed to load vocabulary',
+  VOCABULARY_ADD_FAILED: 'Failed to add vocabulary entry',
+  VOCABULARY_UPDATE_FAILED: 'Failed to update vocabulary entry',
+  VOCABULARY_DELETE_FAILED: 'Failed to delete vocabulary entry',
+  VOCABULARY_LIMIT_REACHED: 'Vocabulary limit reached',
+  TERM_REQUIRED: 'Term is required',
+  DUPLICATE_TERM: 'This term already exists',
 } as const;
 
 // Processing Steps (for UI display)
@@ -63,4 +70,12 @@ export const PROCESSING_STEPS = [
 export const TITLE_CONFIG = {
   MAX_LENGTH: 60,
   MIN_LENGTH: 10,
+} as const;
+
+// Subscription/Plan Configuration
+export const SUBSCRIPTION_CONFIG = {
+  FREE_MAX_RECORDINGS: 5,
+  FREE_MAX_NOTES: 10,
+  FREE_MAX_VOCABULARY: 5,
+  PRO_MAX_VOCABULARY: 50,
 } as const;
