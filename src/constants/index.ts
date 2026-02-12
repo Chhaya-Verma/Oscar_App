@@ -7,11 +7,20 @@
 // NOTE: Points to Oscar Web Backend (https://oscar.samyarth.org)
 export const API_CONFIG = {
   // Backend base URL - Oscar web deployment
-  BASE_URL: 'https://oscar.samyarth.org/api/deepseek',
+  BASE_URL: 'https://oscar.samyarth.org/api',
 
-  // API Endpoints (format and title generation)
+  // AI Endpoints (format and title generation)
   FORMAT_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/format',
   TITLE_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/title',
+
+  // Razorpay Endpoints (subscription & payment)
+  RAZORPAY_CREATE_SUBSCRIPTION: 'https://oscar.samyarth.org/api/razorpay/create-subscription',
+  RAZORPAY_VERIFY: 'https://oscar.samyarth.org/api/razorpay/verify',
+  RAZORPAY_CANCEL: 'https://oscar.samyarth.org/api/razorpay/cancel',
+
+  // Usage Endpoints (tracking & limits)
+  USAGE_STATS: 'https://oscar.samyarth.org/api/usage/stats',
+  USAGE_INCREMENT: 'https://oscar.samyarth.org/api/usage/increment',
 
   // Timeout configuration (in milliseconds)
   REQUEST_TIMEOUT_MS: 30000,

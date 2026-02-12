@@ -8,15 +8,15 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "@/types/navigation";
 import Icon from "react-native-vector-icons/Ionicons";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
-import { useSubscription } from "@/context/SubscriptionContext";
+import { useSubscriptionContext } from "@/context/SubscriptionContext";
 import { VocabularyLimitModal } from "@/components/VocabularyLimitModal";
 import { vocabularyService } from "@/services/vocabulary.service";
 import type { VocabularyEntry } from "@/types/vocabulary.types";
@@ -30,7 +30,7 @@ type SettingsScreenNavigationProp = NativeStackNavigationProp<
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { user } = useAuth();
-  const { isProUser } = useSubscription();
+  const { isProUser, status } = useSubscriptionContext();
 
   const [activeTab, setActiveTab] = useState("vocabulary");
   const [vocabulary, setVocabulary] = useState<VocabularyEntry[]>([]);
@@ -219,8 +219,7 @@ export default function SettingsScreen() {
         onClose={() => setShowVocabLimitModal(false)}
         onUpgradePress={() => {
           setShowVocabLimitModal(false);
-          // TODO: Navigate to upgrade screen
-          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+          navigation.navigate("Pricing");
         }}
       />
 
@@ -642,11 +641,25 @@ export default function SettingsScreen() {
                   </View>
                 </View>
 
-                <Pressable style={styles.upgradeButton}>
-                  <Text style={styles.upgradeButtonText}>
-                    Upgrade to Pro
-                  </Text>
-                </Pressable>
+                {isProUser && status === "active" ? (
+                  <Pressable
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate("Billing")}
+                  >
+                    <Text style={styles.upgradeButtonText}>
+                      Manage Subscription
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate("Pricing")}
+                  >
+                    <Text style={styles.upgradeButtonText}>
+                      Upgrade to Pro
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           )}

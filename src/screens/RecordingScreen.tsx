@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
-import { useSubscription } from '@/context/SubscriptionContext';
+import { useSubscriptionContext } from '@/context/SubscriptionContext';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
@@ -29,7 +29,7 @@ type RecordingScreenNavigationProp = NativeStackNavigationProp<
 
 export default function RecordingScreen() {
   const { user } = useAuth();
-  const { isProUser } = useSubscription();
+  const { canRecord, incrementUsage, isProUser } = useSubscriptionContext();
   const navigation = useNavigation<RecordingScreenNavigationProp>();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -206,6 +206,42 @@ export default function RecordingScreen() {
     setStatus("Ready");
   };
 
+  const handleFormatPress = async () => {
+    if (!canRecord) {
+      Alert.alert(
+        "Recording Limit Reached",
+        "You've reached your recording limit this month. Upgrade to Pro for unlimited recordings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Upgrade",
+            onPress: () => navigation.navigate("Pricing" as any),
+          },
+        ]
+      );
+      return;
+    }
+
+    // Increment usage
+    const success = await incrementUsage();
+    if (!success) {
+      Alert.alert(
+        "Recording Limit Reached",
+        "You've reached your recording limit this month. Upgrade to Pro for unlimited recordings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Upgrade",
+            onPress: () => navigation.navigate("Pricing" as any),
+          },
+        ]
+      );
+      return;
+    }
+
+    navigation.navigate('Processing', { rawText: transcript });
+  };
+
   return (
     <AppShell showUtilities={true}>
       {/* Recording Limit Modal */}
@@ -217,8 +253,7 @@ export default function RecordingScreen() {
         onClose={() => setShowLimitModal(false)}
         onUpgradePress={() => {
           setShowLimitModal(false);
-          // Navigate to upgrade screen or open payment flow
-          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+          navigation.navigate("Pricing" as any);
         }}
       />
 
@@ -288,7 +323,7 @@ export default function RecordingScreen() {
                 {/* Action Button */}
                 <Pressable
                   style={styles.formatButton}
-                  onPress={() => navigation.navigate('Processing', { rawText: transcript })}
+                  onPress={handleFormatPress}
                 >
                   <Icon name="sparkles" size={16} color="#000" style={{ marginRight: 8 }} />
                   <Text style={styles.formatButtonText}>Format with AI</Text>
@@ -323,7 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 80,
+    marginTop: 40,
     marginBottom: 16,
   },
   header: {
