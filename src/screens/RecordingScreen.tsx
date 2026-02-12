@@ -7,14 +7,19 @@ import {
   ScrollView,
   PermissionsAndroid,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscription } from '@/context/SubscriptionContext';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
+import { RecordingLimitModal } from '@/components/RecordingLimitModal';
+import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from '@/constants';
+import { incrementRecordingUsage, canUserRecord } from '@/services/usage.service';
 import Voice from '@react-native-voice/voice';
 
 type RecordingScreenNavigationProp = NativeStackNavigationProp<
@@ -24,36 +29,40 @@ type RecordingScreenNavigationProp = NativeStackNavigationProp<
 
 export default function RecordingScreen() {
   const { user } = useAuth();
+  const { isProUser } = useSubscription();
   const navigation = useNavigation<RecordingScreenNavigationProp>();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [status, setStatus] = useState("Ready");
   const [recognitionStarted, setRecognitionStarted] = useState(false);
+  
+  // Recording limit modal state
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitData, setLimitData] = useState({
+    currentCount: 0,
+    limit: 5,
+    isApproaching: false,
+  });
 
   useEffect(() => {
     // Setup voice listeners
     Voice.onSpeechStart = () => {
-      console.log("onSpeechStart called");
       setRecognitionStarted(true);
       setStatus("Listening...");
     };
 
     Voice.onSpeechPartialResults = (e: any) => {
-      console.log("onSpeechPartialResults:", e);
       if (e.value && e.value.length > 0) {
         const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
         if (text && text.trim()) {
-          console.log("Partial transcript:", text);
           setTranscript(text);
         }
       }
     };
 
     Voice.onSpeechResults = (e: any) => {
-      console.log("onSpeechResults called:", e);
       if (e.value && e.value.length > 0) {
         const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
-        console.log("Transcript received:", text);
         setTranscript(text);
         setStatus("Done");
       }
@@ -62,10 +71,8 @@ export default function RecordingScreen() {
     };
 
     Voice.onSpeechError = (e: any) => {
-      console.log("onSpeechError:", e);
       // Ignore error if we're stopping manually (this is normal behavior)
       if (e.error?.code === '7/No match' || e.error?.message?.includes('No match')) {
-        console.log("No speech detected - ignoring");
         return;
       }
       setStatus("Error: " + (e.error?.message || "Unknown error"));
@@ -74,7 +81,6 @@ export default function RecordingScreen() {
     };
 
     Voice.onSpeechEnd = () => {
-      console.log("onSpeechEnd called");
       setRecognitionStarted(false);
       setIsRecording(false);
     };
@@ -93,7 +99,6 @@ export default function RecordingScreen() {
         );
         
         if (checkPermission) {
-          console.log("Permission already granted");
           return true;
         }
 
@@ -108,10 +113,8 @@ export default function RecordingScreen() {
           }
         );
         
-        console.log("Permission result:", granted);
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.log("Permission error:", err);
         return false;
       }
     }
@@ -122,8 +125,47 @@ export default function RecordingScreen() {
     try {
       console.log("Starting recording...");
       
+      if (!user) {
+        Alert.alert('Please log in to record');
+        return;
+      }
+
+      // Check if user can record
+      const subscriptionPlan = isProUser ? 'pro' : 'free';
+      const { canRecord, currentCount, limit, error: usageError } = await canUserRecord(
+        subscriptionPlan,
+        user.id
+      );
+
+      if (usageError) {
+        Alert.alert('Error', 'Could not check recording limit');
+        return;
+      }
+
+      // Block if limit reached - show beautiful modal
+      if (!canRecord) {
+        setLimitData({
+          currentCount,
+          limit: limit || 5,
+          isApproaching: false,
+        });
+        setShowLimitModal(true);
+        return;
+      }
+
+      // Warn if approaching limit (for free users) - show modal
+      if (limit !== null && currentCount === limit - 1) {
+        setLimitData({
+          currentCount,
+          limit,
+          isApproaching: true,
+        });
+        setShowLimitModal(true);
+        // Don't return - let user continue after dismissing
+        return;
+      }
+      
       const hasPermission = await requestPermission();
-      console.log("Has permission:", hasPermission);
       
       if (!hasPermission) {
         setStatus("Permission denied");
@@ -134,12 +176,9 @@ export default function RecordingScreen() {
       setStatus("Recording...");
       setIsRecording(true);
       
-      console.log("About to call Voice.start");
       await Voice.start("en-US");
-      console.log("Voice.start completed");
       
     } catch (error: any) {
-      console.log("Start error:", error);
       setIsRecording(false);
       setStatus("Error: " + (error.message || "Could not start recording"));
     }
@@ -147,11 +186,8 @@ export default function RecordingScreen() {
 
   const stopRecording = async () => {
     try {
-      console.log("Stopping recording...");
       await Voice.stop();
-      console.log("Voice.stop completed");
     } catch (error: any) {
-      console.log("Stop error:", error);
       setIsRecording(false);
       setStatus("Error: " + (error.message || "Could not stop recording"));
     }
@@ -172,6 +208,20 @@ export default function RecordingScreen() {
 
   return (
     <AppShell showUtilities={true}>
+      {/* Recording Limit Modal */}
+      <RecordingLimitModal
+        visible={showLimitModal}
+        currentCount={limitData.currentCount}
+        limit={limitData.limit}
+        isApproachingLimit={limitData.isApproaching}
+        onClose={() => setShowLimitModal(false)}
+        onUpgradePress={() => {
+          setShowLimitModal(false);
+          // Navigate to upgrade screen or open payment flow
+          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+        }}
+      />
+
       <SafeAreaView style={styles.safe}>
         <ScrollView
           style={styles.scrollContainer}

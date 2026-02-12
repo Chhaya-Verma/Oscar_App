@@ -16,7 +16,10 @@ import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/context/AuthContext';
-import { createNote } from '@/services/notes.service';
+import { useSubscription } from '@/context/SubscriptionContext';
+import { NotesLimitModal } from '@/components/NotesLimitModal';
+import { createNote, fetchUserNotes } from '@/services/notes.service';
+import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from '@/constants';
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;
 type ResultScreenNavigationProp = NativeStackNavigationProp<
@@ -28,9 +31,18 @@ export default function ResultScreen() {
   const route = useRoute<ResultScreenRouteProp>();
   const navigation = useNavigation<ResultScreenNavigationProp>();
   const { user } = useAuth();
+  const { isProUser } = useSubscription();
   const { rawText, formattedText, title } = route.params;
 
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Notes limit modal state
+  const [showNotesLimitModal, setShowNotesLimitModal] = useState(false);
+  const [notesLimitData, setNotesLimitData] = useState({
+    currentCount: 0,
+    limit: 10,
+    isApproaching: false,
+  });
 
   const handleShare = async () => {
     try {
@@ -56,7 +68,42 @@ export default function ResultScreen() {
         return;
       }
 
-      // Save note to Supabase
+      // Check notes limit
+      const { notes, error: fetchError } = await fetchUserNotes();
+      
+      if (fetchError) {
+        Alert.alert('Error', 'Failed to check notes limit');
+        return;
+      }
+
+      const notesLimit = isProUser 
+        ? SUBSCRIPTION_CONFIG.PRO_MAX_NOTES
+        : SUBSCRIPTION_CONFIG.FREE_MAX_NOTES;
+
+      // Show modal if limit reached
+      if (notesLimit !== null && notes.length >= notesLimit) {
+        setNotesLimitData({
+          currentCount: notes.length,
+          limit: notesLimit,
+          isApproaching: false,
+        });
+        setShowNotesLimitModal(true);
+        return;
+      }
+
+      // Warn if approaching limit
+      if (notesLimit !== null && notes.length === notesLimit - 1) {
+        setNotesLimitData({
+          currentCount: notes.length,
+          limit: notesLimit,
+          isApproaching: true,
+        });
+        setShowNotesLimitModal(true);
+        // Don't return - let user continue after dismissing
+        return;
+      }
+
+      // Save note
       const { note, error } = await createNote({
         title: title || 'Untitled Note',
         content: formattedText,
@@ -73,13 +120,13 @@ export default function ResultScreen() {
         {
           text: 'OK',
           onPress: () => {
-            // Navigate back to Recording screen
             navigation.navigate('Recording');
           },
         },
       ]);
-    } catch (error: any) {
-      Alert.alert('Save failed', error.message);
+    } catch (err) {
+      console.error('Save note error:', err);
+      Alert.alert('Error', 'Failed to save note');
     } finally {
       setIsSaving(false);
     }
@@ -95,6 +142,20 @@ export default function ResultScreen() {
 
   return (
     <AppShell showUtilities={true}>
+      {/* Notes Limit Modal */}
+      <NotesLimitModal
+        visible={showNotesLimitModal}
+        currentCount={notesLimitData.currentCount}
+        limit={notesLimitData.limit}
+        isApproachingLimit={notesLimitData.isApproaching}
+        onClose={() => setShowNotesLimitModal(false)}
+        onUpgradePress={() => {
+          setShowNotesLimitModal(false);
+          // TODO: Navigate to upgrade screen
+          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+        }}
+      />
+
       <SafeAreaView style={styles.safe}>
         <ScrollView
           style={styles.scrollContainer}

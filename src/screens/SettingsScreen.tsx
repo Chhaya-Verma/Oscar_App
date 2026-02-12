@@ -17,6 +17,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { VocabularyLimitModal } from "@/components/VocabularyLimitModal";
 import { vocabularyService } from "@/services/vocabulary.service";
 import type { VocabularyEntry } from "@/types/vocabulary.types";
 import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from "@/constants";
@@ -46,6 +47,14 @@ export default function SettingsScreen() {
   const [editTerm, setEditTerm] = useState("");
   const [editPronunciation, setEditPronunciation] = useState("");
   const [editContext, setEditContext] = useState("");
+
+  // Vocabulary limit modal state
+  const [showVocabLimitModal, setShowVocabLimitModal] = useState(false);
+  const [vocabLimitData, setVocabLimitData] = useState({
+    currentCount: 0,
+    limit: 5,
+    isApproaching: false,
+  });
 
   const vocabularyLimit = isProUser
     ? SUBSCRIPTION_CONFIG.PRO_MAX_VOCABULARY
@@ -88,14 +97,24 @@ export default function SettingsScreen() {
 
     // Check vocabulary limit
     if (vocabulary.length >= vocabularyLimit) {
-      Alert.alert(
-        "Limit Reached",
-        `${isProUser ? "Pro" : "Free"} plan allows up to ${vocabularyLimit} vocabulary entries. ${
-          isProUser ? "" : "Upgrade to Pro for unlimited entries."
-        }`,
-        [{ text: "OK" }]
-      );
+      setVocabLimitData({
+        currentCount: vocabulary.length,
+        limit: vocabularyLimit,
+        isApproaching: false,
+      });
+      setShowVocabLimitModal(true);
       return;
+    }
+
+    // Warn if approaching limit
+    if (vocabulary.length === vocabularyLimit - 1) {
+      setVocabLimitData({
+        currentCount: vocabulary.length,
+        limit: vocabularyLimit,
+        isApproaching: true,
+      });
+      setShowVocabLimitModal(true);
+      // Don't return - let user continue after dismissing
     }
 
     setIsAdding(true);
@@ -191,6 +210,20 @@ export default function SettingsScreen() {
 
   return (
     <AppShell showUtilities={true}>
+      {/* Vocabulary Limit Modal */}
+      <VocabularyLimitModal
+        visible={showVocabLimitModal}
+        currentCount={vocabLimitData.currentCount}
+        limit={vocabLimitData.limit}
+        isApproachingLimit={vocabLimitData.isApproaching}
+        onClose={() => setShowVocabLimitModal(false)}
+        onUpgradePress={() => {
+          setShowVocabLimitModal(false);
+          // TODO: Navigate to upgrade screen
+          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+        }}
+      />
+
       <SafeAreaView style={styles.container}>
         <ScrollView
           style={styles.content}
