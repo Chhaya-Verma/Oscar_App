@@ -57,6 +57,10 @@ export const ERROR_MESSAGES = {
   VOCABULARY_LIMIT_REACHED: 'Vocabulary limit reached',
   TERM_REQUIRED: 'Term is required',
   DUPLICATE_TERM: 'This term already exists',
+  
+  // Subscription/Usage limits
+  RECORDINGS_LIMIT_REACHED: 'You have reached your monthly recording limit. Upgrade to Pro for unlimited recordings.',
+  NOTES_LIMIT_REACHED: 'You have reached your notes limit. Upgrade to Pro for unlimited notes.',
 } as const;
 
 // Processing Steps (for UI display)
@@ -74,8 +78,15 @@ export const TITLE_CONFIG = {
 
 // Subscription/Plan Configuration
 export const SUBSCRIPTION_CONFIG = {
+  // Recordings - monthly limit
   FREE_MAX_RECORDINGS: 5,
+  PRO_MAX_RECORDINGS: null, 
+  
+  // Notes - total limit
   FREE_MAX_NOTES: 10,
+  PRO_MAX_NOTES: null,
+  
+  // Vocabulary entries
   FREE_MAX_VOCABULARY: 5,
   PRO_MAX_VOCABULARY: 50,
 } as const;

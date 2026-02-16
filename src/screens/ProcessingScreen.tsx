@@ -13,7 +13,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
+import { useAuth } from '@/context/AuthContext';
 import { aiService } from '@/services/ai.service';
+import { incrementRecordingUsage } from '@/services/usage.service';
 
 type ProcessingScreenRouteProp = RouteProp<RootStackParamList, 'Processing'>;
 type ProcessingScreenNavigationProp = NativeStackNavigationProp<
@@ -24,6 +26,7 @@ type ProcessingScreenNavigationProp = NativeStackNavigationProp<
 export default function ProcessingScreen() {
   const route = useRoute<ProcessingScreenRouteProp>();
   const navigation = useNavigation<ProcessingScreenNavigationProp>();
+  const { user } = useAuth();
   const { rawText } = route.params;
 
   const [isProcessing, setIsProcessing] = useState(true);
@@ -40,8 +43,6 @@ export default function ProcessingScreen() {
       setError(null);
       setIsRetrying(false);
 
-      console.log('Starting formatting for transcript...');
-
       // Format the text
       const formatResult = await aiService.formatText(rawText);
 
@@ -51,12 +52,18 @@ export default function ProcessingScreen() {
         );
       }
 
-      console.log('Formatting successful, generating title...');
-
       // Generate title
       const titleResult = await aiService.generateTitle(formatResult.formattedText);
 
-      console.log('Navigation to Result screen...');
+      // After successful formatting, increment the recording usage
+      if (user) {
+        const { newCount, error: usageError } = await incrementRecordingUsage(user.id);
+        
+        if (usageError) {
+          // Don't block the user if usage increment fails
+          // Log error silently for monitoring
+        }
+      }
 
       // Navigate to Result screen
       navigation.replace('Result', {
@@ -67,7 +74,6 @@ export default function ProcessingScreen() {
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error ? err.message : 'An unknown error occurred';
-      console.error('Processing error:', errorMsg);
       setError(errorMsg);
       setIsProcessing(false);
     }
