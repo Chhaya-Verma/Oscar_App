@@ -1,5 +1,6 @@
 import { API_CONFIG, UI_STRINGS, ERROR_MESSAGES } from '@/constants';
 import { supabase } from '@/lib/supabase/client';
+import { DEEPSEEK_API_KEY } from '@env';
 
 /**
  * Fetch with timeout and abort signal support
@@ -101,6 +102,74 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
+async function deepseekFormatText(
+  rawText: string,
+  signal?: AbortSignal
+): Promise<FormattingResult> {
+  const apiKey = (DEEPSEEK_API_KEY || '').trim();
+  if (!apiKey) {
+    return {
+      success: false,
+      error: 'DeepSeek API key not configured',
+      fallback: true,
+    };
+  }
+
+  const response = await fetchWithTimeout(
+    'https://api.deepseek.com/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a professional text formatter. Fix grammar and clarity while preserving meaning. Respond with only the formatted text.',
+          },
+          { role: 'user', content: rawText },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      }),
+    },
+    RETRY_CONFIG.TIMEOUT_MS,
+    signal
+  );
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    return {
+      success: false,
+      error: errText || `DeepSeek error: ${response.status}`,
+      fallback: true,
+    };
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content?.trim?.();
+  if (!content) {
+    return {
+      success: false,
+      error: 'No formatted text received from DeepSeek',
+      fallback: true,
+    };
+  }
+
+  const cleaned = content
+    .replace(/^```[\w]*\n/, '')
+    .replace(/\n```$/, '')
+    .trim();
+  return {
+    success: true,
+    formattedText: cleaned,
+  };
+}
+
 export const aiService = {
   /**
    * Format raw transcript text using Oscar web backend
@@ -135,7 +204,8 @@ export const aiService = {
           const token = session?.access_token;
 
           if (!token) {
-            throw new Error('Unauthorized access');
+            const ds = await deepseekFormatText(rawText, signal);
+            return ds;
           }
 
           const response = await fetchWithTimeout(
@@ -154,10 +224,13 @@ export const aiService = {
           );
 
           if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+              const ds = await deepseekFormatText(rawText, signal);
+              return ds;
+            }
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-              errorData?.error || `Formatting failed: ${response.status}`
-            );
+            const msg = errorData?.error || `Formatting failed: ${response.status}`;
+            throw new Error(msg);
           }
 
           const data = await response.json();
@@ -193,9 +266,12 @@ export const aiService = {
         };
       }
 
+      const ds = await deepseekFormatText(rawText, signal);
+      if (ds.success) return ds;
       return {
         success: false,
-        error: err?.message || 'Failed to format text',
+        error: ds.error || err?.message || 'Failed to format text',
+        fallback: true,
       };
     }
   },
