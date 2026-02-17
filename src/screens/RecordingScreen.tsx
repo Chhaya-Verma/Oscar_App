@@ -142,7 +142,7 @@ export default function RecordingScreen() {
         return;
       }
 
-      // Block if limit reached - show beautiful modal
+      // Block if limit reached - show blocking modal only
       if (!canRecord) {
         setLimitData({
           currentCount,
@@ -153,17 +153,6 @@ export default function RecordingScreen() {
         return;
       }
 
-      // Warn if approaching limit (for free users) - show modal
-      if (limit !== null && currentCount === limit - 1) {
-        setLimitData({
-          currentCount,
-          limit,
-          isApproaching: true,
-        });
-        setShowLimitModal(true);
-        // Don't return - let user continue after dismissing
-        return;
-      }
       
       const hasPermission = await requestPermission();
       
@@ -323,7 +312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 80,
+    marginTop: 30,
     marginBottom: 16,
   },
   header: {
