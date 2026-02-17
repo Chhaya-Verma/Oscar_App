@@ -10,6 +10,8 @@ import ResultScreen from '@/screens/ResultScreen';
 import NotesScreen from '@/screens/NotesScreen';
 import NoteDetailScreen from '@/screens/NoteDetailScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
+import PricingPage from '@/screens/PricingPage';
+import BillingPage from '@/screens/BillingPage';
 import type { RootStackParamList } from '@/types/navigation';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -39,6 +41,8 @@ export default function RootNavigator() {
       <Stack.Screen name="Notes" component={NotesScreen} />
       <Stack.Screen name="NoteDetail" component={NoteDetailScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Pricing" component={PricingPage} />
+      <Stack.Screen name="Billing" component={BillingPage} />
     </Stack.Navigator>
   );
 }

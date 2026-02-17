@@ -1,5 +1,27 @@
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
+# Backend Integration
+
+> **Important**: Oscar App uses **Oscar Web's backend** for all API operations.
+> Both apps share the **same Supabase project** for data synchronization.
+
+## Key Architecture
+
+- **API Backend**: Oscar Web (https://oscar.samyarth.org)
+- **Database**: Shared Supabase Project
+- **Authentication**: Supabase Auth (shared across both apps)
+- **Payments**: Razorpay (configured for subscriptions)
+- **Usage Tracking**: Centralized in Supabase
+
+## Before Starting
+
+Ensure you have:
+1. Oscar Web backend running/accessible
+2. Same Supabase credentials as Oscar Web
+3. Razorpay API keys configured (see `.env.example`)
+
+See `BACKEND_INTEGRATION.ts` for detailed architecture documentation.
+
 # Getting Started
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
@@ -62,29 +84,125 @@ If everything is set up correctly, you should see your new app running in the An
 
 This is one way to run your app — you can also build it directly from Android Studio or Xcode.
 
-## Step 3: Modify your app
+## Step 3: Configure Environment Variables
 
-Now that you have successfully run the app, let's make changes!
+Copy `.env.example` to `.env` and fill in your actual credentials:
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```sh
+cp .env.example .env
+```
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Then update these values with your actual credentials:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+- **Razorpay Keys**: Get from your Razorpay Dashboard (https://dashboard.razorpay.com/)
+- **Supabase Keys**: Get from your Supabase Dashboard (https://app.supabase.com/)
+- **Webhook Secret**: Generate in Razorpay Dashboard under Webhooks section
 
-## Congratulations! :tada:
+## Step 4: Set Up Razorpay
 
-You've successfully run and modified your React Native App. :partying_face:
+### Create Razorpay Plans
 
-### Now what?
+The app expects two subscription plans to be created in Razorpay:
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+1. **Monthly Plan** (₹99/month)
+   - Period: monthly
+   - Description: "Oscar Pro Monthly"
 
-# Troubleshooting
+2. **Yearly Plan** (₹999/year)
+   - Period: yearly
+   - Description: "Oscar Pro Yearly"
+
+Get the plan IDs from Razorpay Dashboard and update `src/constants/index.ts` if needed.
+
+### Set Up Webhook
+
+In Razorpay Dashboard:
+1. Go to Settings → Webhooks
+2. Add webhook URL: `https://yourdomain.com/api/razorpay/webhook`
+3. Subscribe to events:
+   - `subscription.activated`
+   - `subscription.paused`
+   - `subscription.halted`
+   - `subscription.cancelled`
+   - `subscription.completed`
+   - `subscription.expired`
+4. Copy the Webhook Secret and add to `.env` as `RAZORPAY_WEBHOOK_SECRET`
+
+## Step 5: Initialize Database
+
+Run the migration to create the necessary tables:
+
+```sh
+# Using Supabase CLI
+supabase migration up
+
+# Or execute the SQL directly in Supabase SQL Editor:
+# See: supabase/migrations/001_subscriptions.sql
+```
+
+## Architecture Overview
+
+### Subscription System
+
+The app implements a complete subscription and usage tracking system:
+
+- **Free Plan**: 5 recordings/month, 10 notes, 5 vocabulary terms
+- **Pro Plan**: Unlimited everything
+
+### Key Components
+
+- **SubscriptionContext**: Global subscription state management
+- **UsageIndicator**: Display user's current usage
+- **PricingPage**: Allow users to upgrade plans
+- **BillingPage**: Manage active subscriptions
+- **Razorpay Integration**: Handle payment processing
+
+### API Endpoints
+
+- `POST /api/razorpay/create-subscription`: Create a new subscription
+- `POST /api/razorpay/verify`: Verify payment signature
+- `POST /api/razorpay/webhook`: Handle Razorpay webhooks
+- `POST /api/razorpay/cancel`: Cancel active subscription
+- `GET /api/usage/stats`: Get user's usage statistics
+- `POST /api/usage/increment`: Increment recording count
+
+### Data Flow
+
+1. User navigates to Pricing page
+2. Selects monthly or yearly plan
+3. `useRazorpayCheckout` hook creates subscription via API
+4. Razorpay checkout opens
+5. User completes payment
+6. Webhook received and processed
+7. Subscription status updated in database
+8. User gains access to Pro features
+
+## Testing with Razorpay
+
+Use Razorpay test credentials (not real):
+- Test Key ID and Secret from Dashboard
+- Test cards: Use 4111111111111111 with any future expiry
+
+The app automatically uses test mode with test credentials.
+
+## Troubleshooting
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+
+### Webhook not being triggered
+- Ensure webhook URL is publicly accessible
+- Check webhook secret is correct in `.env`
+- Verify events are subscribed in Razorpay Dashboard
+
+### Usage tracking not working
+- Ensure `incrementUsage` is called after recording
+- Check `/api/usage/increment` endpoint returns 200
+- Verify Supabase authentication is working
+
+### Subscription not showing as active
+- Check webhook payload in Razorpay Dashboard
+- Verify subscription ID is saved in database
+- Check database migration was applied
 
 # Learn More
 

@@ -3,15 +3,18 @@ import { View, TouchableOpacity, StyleSheet, Text, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscriptionContext } from '@/context/SubscriptionContext';
 
 interface AppShellProps {
   children: React.ReactNode;
   showUtilities?: boolean;
+  hidePricingButton?: boolean;
 }
 
-const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) => {
-  const navigation = useNavigation();
+const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true, hidePricingButton = false }) => {
+  const navigation = useNavigation<any>();
   const { signOut } = useAuth();
+  const { isProUser, status } = useSubscriptionContext();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -35,15 +38,35 @@ const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) =
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Landing' as never)}
-          style={styles.headerContent}
-        >
-          <View style={styles.brandRow}>
-            <Icon name="mic-outline" size={24} color="#22d3ee" />
-            <Text style={styles.brandText}>OSCAR</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Landing' as never)}
+          >
+            <View style={styles.brandRow}>
+              <Icon name="mic-outline" size={24} color="#22d3ee" />
+              <Text style={styles.brandText}>OSCAR</Text>
+            </View>
+          </TouchableOpacity>
+          
+          {isProUser && status === "active" && (
+            <View style={styles.proBadge}>
+              <Icon name="crown" size={12} color="#ffffff" />
+              <Text style={styles.proBadgeText}>PRO</Text>
+            </View>
+          )}
+        </View>
+        
+        {!hidePricingButton && (
+          <TouchableOpacity
+            style={styles.pricingBtn}
+            onPress={() => {
+              const route = isProUser && status === "active" ? "Billing" : "Pricing";
+              navigation.navigate(route as any);
+            }}
+          >
+            <Icon name="card-outline" size={20} color="#22d3ee" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Main Content */}
@@ -95,17 +118,23 @@ const AppShell: React.FC<AppShellProps> = ({ children, showUtilities = true }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 100,
     backgroundColor: '#020617',
   },
   header: {
-    position: 'absolute',
-    top: 40,
-    left: 24,
+    paddingTop: 40,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(34, 211, 238, 0.1)',
     zIndex: 10,
   },
   headerContent: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   brandRow: {
     flexDirection: 'row',
@@ -118,6 +147,23 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     color: '#ffffff',
     opacity: 0.9,
+  },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#06b6d4',
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  pricingBtn: {
+    padding: 8,
   },
   content: {
     flex: 1,
