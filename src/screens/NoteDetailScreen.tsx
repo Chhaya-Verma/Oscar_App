@@ -17,6 +17,8 @@ import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
 import { fetchNoteById, updateNote } from '@/services/notes.service';
+import { submitFeedback, type FeedbackReason } from '@/services/feedback.service';
+import { FeedbackWidget } from '@/components/FeedbackWidget';
 import { useAuth } from '@/context/AuthContext';
 import type { Note } from '@/services/notes.service';
 
@@ -39,6 +41,11 @@ export default function NoteDetailScreen() {
   const [editedTitle, setEditedTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showRawText, setShowRawText] = useState(false);
+
+  // Feedback state
+  const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false);
+  const [hasFeedbackSubmitted, setHasFeedbackSubmitted] = useState(false);
+  const [feedbackValue, setFeedbackValue] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadNoteDetail();
@@ -80,6 +87,13 @@ export default function NoteDetailScreen() {
     setNote(fetchedNote);
     setEditedContent(fetchedNote.content || '');
     setEditedTitle(fetchedNote.title || '');
+    
+    // Initialize feedback state from note
+    if (fetchedNote.feedback_helpful !== null && fetchedNote.feedback_helpful !== undefined) {
+      setHasFeedbackSubmitted(true);
+      setFeedbackValue(fetchedNote.feedback_helpful);
+    }
+    
     setLoading(false);
   };
 
@@ -115,6 +129,31 @@ export default function NoteDetailScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to share note');
     }
+  };
+
+  const handleFeedbackSubmit = async (
+    helpful: boolean,
+    reasons?: FeedbackReason[]
+  ) => {
+    if (!note) {
+      Alert.alert('Error', 'Could not submit feedback - note not found.');
+      return;
+    }
+
+    setIsFeedbackSubmitting(true);
+    const { success, error } = await submitFeedback(note.id, helpful, reasons);
+
+    if (error || !success) {
+      Alert.alert(
+        'Error',
+        'Failed to submit feedback. Please try again.'
+      );
+    } else {
+      setHasFeedbackSubmitted(true);
+      setFeedbackValue(helpful);
+      Alert.alert('Thanks!', 'Your feedback helps us improve.');
+    }
+    setIsFeedbackSubmitting(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -261,6 +300,16 @@ export default function NoteDetailScreen() {
                 </Pressable>
               </View>
             )}
+          </View>
+
+          {/* Feedback Widget  */}
+          <View style={styles.section}>
+            <FeedbackWidget
+              onSubmit={handleFeedbackSubmit}
+              isSubmitting={isFeedbackSubmitting}
+              hasSubmitted={hasFeedbackSubmitted}
+              submittedValue={feedbackValue}
+            />
           </View>
 
           {/* Raw Text Section (if available) */}

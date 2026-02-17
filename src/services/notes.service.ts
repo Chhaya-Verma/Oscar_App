@@ -188,8 +188,8 @@ export async function createNote(
       .insert([
         {
           title: payload.title,
-          content: payload.content,
-          raw_content: payload.raw_content || '',
+          original_formatted_text: payload.content,
+          raw_text: payload.raw_content || '',
           is_starred: payload.is_starred || false,
           user_id: user.id,
         },
@@ -203,15 +203,29 @@ export async function createNote(
 
     console.log('Note created successfully:', data);
 
+    const displayContent = data.edited_text || 
+                          data.original_formatted_text || 
+                          data.content || 
+                          '';
+    
+    const displayRawContent = data.raw_text || 
+                             data.raw_content || 
+                             '';
+
     const note: Note = {
       id: data.id,
       title: data.title,
-      content: data.content,
-      raw_content: data.raw_content,
+      content: displayContent,
+      raw_content: displayRawContent,
       is_starred: data.is_starred || false,
       user_id: data.user_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
+      original_formatted_text: data.original_formatted_text,
+      raw_text: data.raw_text,
+      edited_text: data.edited_text,
+      feedback_helpful: data.feedback_helpful,
+      feedback_reasons: data.feedback_reasons,
     };
 
     return { note, error: null };
