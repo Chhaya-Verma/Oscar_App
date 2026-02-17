@@ -95,7 +95,7 @@ export default function SettingsScreen() {
       return;
     }
 
-    // Check vocabulary limit
+    // Check vocabulary limit - show blocking modal only when limit is reached
     if (vocabulary.length >= vocabularyLimit) {
       setVocabLimitData({
         currentCount: vocabulary.length,
@@ -105,18 +105,6 @@ export default function SettingsScreen() {
       setShowVocabLimitModal(true);
       return;
     }
-
-    // Warn if approaching limit
-    if (vocabulary.length === vocabularyLimit - 1) {
-      setVocabLimitData({
-        currentCount: vocabulary.length,
-        limit: vocabularyLimit,
-        isApproaching: true,
-      });
-      setShowVocabLimitModal(true);
-      // Don't return - let user continue after dismissing
-    }
-
     setIsAdding(true);
     try {
       const { data, error } = await vocabularyService.addVocabularyEntry({
