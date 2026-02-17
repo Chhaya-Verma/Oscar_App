@@ -91,18 +91,6 @@ export default function ResultScreen() {
         return;
       }
 
-      // Warn if approaching limit
-      if (notesLimit !== null && notes.length === notesLimit - 1) {
-        setNotesLimitData({
-          currentCount: notes.length,
-          limit: notesLimit,
-          isApproaching: true,
-        });
-        setShowNotesLimitModal(true);
-        // Don't return - let user continue after dismissing
-        return;
-      }
-
       // Save note
       const { note, error } = await createNote({
         title: title || 'Untitled Note',

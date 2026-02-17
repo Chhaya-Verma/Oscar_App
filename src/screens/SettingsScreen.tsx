@@ -106,17 +106,6 @@ export default function SettingsScreen() {
       return;
     }
 
-    // Warn if approaching limit
-    if (vocabulary.length === vocabularyLimit - 1) {
-      setVocabLimitData({
-        currentCount: vocabulary.length,
-        limit: vocabularyLimit,
-        isApproaching: true,
-      });
-      setShowVocabLimitModal(true);
-      // Don't return - let user continue after dismissing
-    }
-
     setIsAdding(true);
     try {
       const { data, error } = await vocabularyService.addVocabularyEntry({

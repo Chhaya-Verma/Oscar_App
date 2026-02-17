@@ -142,7 +142,7 @@ export default function RecordingScreen() {
         return;
       }
 
-      // Block if limit reached - show beautiful modal
+      // Block if limit reached - show modal
       if (!canRecord) {
         setLimitData({
           currentCount,
@@ -150,18 +150,6 @@ export default function RecordingScreen() {
           isApproaching: false,
         });
         setShowLimitModal(true);
-        return;
-      }
-
-      // Warn if approaching limit (for free users) - show modal
-      if (limit !== null && currentCount === limit - 1) {
-        setLimitData({
-          currentCount,
-          limit,
-          isApproaching: true,
-        });
-        setShowLimitModal(true);
-        // Don't return - let user continue after dismissing
         return;
       }
       
