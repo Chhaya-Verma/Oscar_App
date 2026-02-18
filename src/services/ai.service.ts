@@ -397,4 +397,172 @@ export const aiService = {
       .replace(/\n```$/, '')
       .trim();
   },
+
+  /**
+   * Format a note into a Gmail-friendly formal email body via AI
+   * @param rawText - base content to convert into email body
+   * @param title - optional title for contextual intro
+   * @param signal - optional AbortSignal for cancellation
+   */
+  async formatEmailText(
+    rawText: string,
+    title?: string,
+    signal?: AbortSignal
+  ): Promise<FormattingResult> {
+    if (!rawText || !rawText.trim()) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.NO_TEXT_PROVIDED_FOR_FORMATTING,
+      };
+    }
+
+    if (signal?.aborted) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.FORMATTING_CANCELLED,
+      };
+    }
+
+    try {
+      return await retryWithBackoff(
+        async () => {
+          // Get auth token from Supabase
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+
+          if (!token) {
+            throw new Error('Unauthorized access');
+          }
+
+          const response = await fetchWithTimeout(
+            API_CONFIG.FORMAT_EMAIL_ENDPOINT,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'X-Auth-Token': token,
+              },
+              body: JSON.stringify({ rawText, title }),
+            },
+            API_CONFIG.REQUEST_TIMEOUT_MS,
+            signal
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const msg = errorData?.error || `Email formatting failed: ${response.status}`;
+            throw new Error(msg);
+          }
+
+          const data = await response.json();
+          const formattedText = data?.formattedText?.trim();
+
+          if (!formattedText) {
+            throw new Error(ERROR_MESSAGES.EMPTY_RESPONSE_FROM_FORMATTING);
+          }
+
+          // Remove markdown code blocks if present
+          const cleanedText = formattedText
+            .replace(/^```[\w]*\n/, '')
+            .replace(/\n```$/, '')
+            .trim();
+
+          return {
+            success: true,
+            formattedText: cleanedText,
+          };
+        },
+        API_CONFIG.MAX_RETRIES,
+        API_CONFIG.INITIAL_RETRY_DELAY_MS
+      );
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Format email text error:', error);
+
+      if (err?.message === ERROR_MESSAGES.FORMATTING_CANCELLED) {
+        return { success: false, error: ERROR_MESSAGES.FORMATTING_CANCELLED };
+      }
+
+      return { success: false, error: err?.message || 'Failed to format email' };
+    }
+  },
+
+  /**
+   * Translate text into a target language (en/hi)
+   * @param text - Text to translate
+   * @param targetLanguage - Target language code ('en' or 'hi')
+   * @param signal - Optional AbortSignal for cancellation
+   */
+  async translateText(
+    text: string,
+    targetLanguage: 'en' | 'hi',
+    signal?: AbortSignal
+  ): Promise<{ success: boolean; translatedText?: string; error?: string }> {
+    if (!text || !text.trim()) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.NO_TEXT_PROVIDED_FOR_TRANSLATION,
+      };
+    }
+
+    if (targetLanguage !== 'en' && targetLanguage !== 'hi') {
+      return {
+        success: false,
+        error: 'Target language must be "en" (English) or "hi" (Hindi)',
+      };
+    }
+
+    try {
+      // Get auth token from Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('Unauthorized access');
+      }
+
+      const response = await fetchWithTimeout(
+        API_CONFIG.TRANSLATE_ENDPOINT,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'X-Auth-Token': token,
+          },
+          body: JSON.stringify({ text, targetLanguage }),
+        },
+        API_CONFIG.REQUEST_TIMEOUT_MS,
+        signal
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const msg = errorData?.error || `Translation failed: ${response.status}`;
+        throw new Error(msg);
+      }
+
+      const data = await response.json();
+      const translatedText = data?.translatedText?.trim();
+
+      if (!translatedText) {
+        return {
+          success: false,
+          error: ERROR_MESSAGES.EMPTY_RESPONSE_FROM_TRANSLATION,
+        };
+      }
+
+      return { success: true, translatedText };
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Translation error:', error);
+
+      if (err?.message === ERROR_MESSAGES.FORMATTING_CANCELLED) {
+        return { success: false, error: ERROR_MESSAGES.FORMATTING_CANCELLED };
+      }
+
+      return { success: false, error: err?.message || 'Failed to translate text' };
+    }
+  },
 };

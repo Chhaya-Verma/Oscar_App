@@ -11,7 +11,9 @@ export const API_CONFIG = {
 
   // API Endpoints (format and title generation)
   FORMAT_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/format',
+  FORMAT_EMAIL_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/format-email',
   TITLE_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/title',
+  TRANSLATE_ENDPOINT: 'https://oscar.samyarth.org/api/deepseek/translate',
 
   // Timeout configuration (in milliseconds)
   REQUEST_TIMEOUT_MS: 30000,
@@ -38,9 +40,11 @@ export const UI_STRINGS = {
 export const ERROR_MESSAGES = {
   NO_TEXT_PROVIDED_FOR_FORMATTING: 'No text provided for formatting',
   NO_TEXT_PROVIDED_FOR_TITLE: 'No text provided for title generation',
+  NO_TEXT_PROVIDED_FOR_TRANSLATION: 'No text provided for translation',
   FORMATTING_CANCELLED: 'Formatting was cancelled',
   EMPTY_RESPONSE_FROM_FORMATTING: 'Empty response from formatting service',
   EMPTY_RESPONSE_FROM_TITLE: 'Empty response from title generation service',
+  EMPTY_RESPONSE_FROM_TRANSLATION: 'Empty response from translation service',
   DEEPSEEK_API_ERROR: 'DeepSeek API error',
   DEEPSEEK_REQUEST_FAILED: 'Failed to communicate with DeepSeek',
   SERVER_MISSING_API_KEY: 'Server missing API key configuration',
@@ -79,7 +83,7 @@ export const TITLE_CONFIG = {
 // Subscription/Plan Configuration
 export const SUBSCRIPTION_CONFIG = {
   // Recordings - monthly limit
-  FREE_MAX_RECORDINGS: 5,
+  FREE_MAX_RECORDINGS: 20,
   PRO_MAX_RECORDINGS: null, 
   
   // Notes - total limit
