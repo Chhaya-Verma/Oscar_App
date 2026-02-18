@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -18,9 +18,20 @@ import type { RootStackParamList } from '@/types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AppShell from '@/components/AppShell';
 import { RecordingLimitModal } from '@/components/RecordingLimitModal';
-import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from '@/constants';
-import { incrementRecordingUsage, canUserRecord } from '@/services/usage.service';
-import Voice from '@react-native-voice/voice';
+import { canUserRecord } from '@/services/usage.service';
+// import Voice from '@react-native-voice/voice';
+import {
+  loadModel as voskLoadModel,
+  unload as voskUnload,
+  start as voskStart,
+  stop as voskStop,
+  onPartialResult as voskOnPartialResult,
+  onFinalResult as voskOnFinalResult,
+  onResult as voskOnResult,
+  onError as voskOnError,
+  onTimeout as voskOnTimeout,
+} from 'react-native-vosk';
+ 
 
 type RecordingScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -34,7 +45,11 @@ export default function RecordingScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [status, setStatus] = useState("Ready");
-  const [recognitionStarted, setRecognitionStarted] = useState(false);
+  const segmentsRef = useRef<string[]>([]);
+  const partialRef = useRef<string>("");
+  const [useVosk, setUseVosk] = useState(true);
+  const [voskReady, setVoskReady] = useState(false);
+  const VOSK_MODEL_NAME = 'model-en-en';
   
   // Recording limit modal state
   const [showLimitModal, setShowLimitModal] = useState(false);
@@ -43,52 +58,191 @@ export default function RecordingScreen() {
     limit: 5,
     isApproaching: false,
   });
+  
+//   const vosk = new Vosk();
+
+// const path = 'some/path/to/model/directory';
+
+// vosk
+//   .loadModel(path)
+//   .then(() => {
+//     const options = {
+//       grammar: ['left', 'right', '[unk]'],
+//     };
+
+//     vosk
+//       .start(options)
+//       .then(() => {
+//         console.log('Recognizer successfuly started');
+//       })
+//       .catch((e) => {
+//         console.log('Error: ' + e);
+//       });
+
+//     const resultEvent = vosk.onResult((res) => {
+//       console.log('A onResult event has been caught: ' + res);
+//     });
+
+//     // Don't forget to call resultEvent.remove(); to delete the listener
+//   })
+//   .catch((e) => {
+//     console.error(e);
+//   });
 
   useEffect(() => {
-    // Setup voice listeners
-    Voice.onSpeechStart = () => {
-      setRecognitionStarted(true);
-      setStatus("Listening...");
+    let mounted = true;
+    const initVosk = async () => {
+      console.log("Initializing VOSK model");
+      console.log(VOSK_MODEL_NAME);
+      try {
+        await voskLoadModel(VOSK_MODEL_NAME);
+        if (!mounted) return;
+        setVoskReady(true);
+      } catch (e)  {
+        console.error("Failed to load VOSK model " + e);
+        if (!mounted) return;
+        setVoskReady(false);
+        setUseVosk(false);
+      } 
     };
-
-    Voice.onSpeechPartialResults = (e: any) => {
-      if (e.value && e.value.length > 0) {
-        const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
-        if (text && text.trim()) {
-          setTranscript(text);
-        }
-      }
-    };
-
-    Voice.onSpeechResults = (e: any) => {
-      if (e.value && e.value.length > 0) {
-        const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
-        setTranscript(text);
-        setStatus("Done");
-      }
-      setRecognitionStarted(false);
-      setIsRecording(false);
-    };
-
-    Voice.onSpeechError = (e: any) => {
-      // Ignore error if we're stopping manually (this is normal behavior)
-      if (e.error?.code === '7/No match' || e.error?.message?.includes('No match')) {
-        return;
-      }
-      setStatus("Error: " + (e.error?.message || "Unknown error"));
-      setRecognitionStarted(false);
-      setIsRecording(false);
-    };
-
-    Voice.onSpeechEnd = () => {
-      setRecognitionStarted(false);
-      setIsRecording(false);
-    };
-
+    initVosk();
     return () => {
-      Voice.destroy().catch(() => {});
+      mounted = false;
+      try { voskUnload(); } catch {}
     };
   }, []);
+
+  // useEffect(() => {
+  //   // Setup voice listeners
+  //   Voice.onSpeechStart = () => {
+  //     setRecognitionStarted(true);
+  //     setStatus("Listening...");
+  //   };
+
+  //   Voice.onSpeechPartialResults = (e: any) => {
+  //     if (e.value && e.value.length > 0) {
+  //       const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
+  //       if (text && text.trim()) {
+  //         setTranscript(text);
+  //       }
+  //     }
+  //   };
+
+  //   Voice.onSpeechResults = (e: any) => {
+  //     if (e.value && e.value.length > 0) {
+  //       const text = Array.isArray(e.value) ? e.value[0] : String(e.value);
+  //       setTranscript(text);
+  //       setStatus("Done");
+  //     }
+  //     setRecognitionStarted(false);
+  //     setIsRecording(false);
+  //   };
+
+  //   Voice.onSpeechError = (e: any) => {
+  //     // Ignore error if we're stopping manually (this is normal behavior)
+  //     if (e.error?.code === '7/No match' || e.error?.message?.includes('No match')) {
+  //       return;
+  //     }
+  //     setStatus("Error: " + (e.error?.message || "Unknown error"));
+  //     setRecognitionStarted(false);
+  //     setIsRecording(false);
+  //   };
+
+  //   Voice.onSpeechEnd = () => {
+  //     setRecognitionStarted(false);
+  //     setIsRecording(false);
+  //   };
+
+  //   return () => {
+  //     Voice.destroy().catch(() => {});
+  //   };
+  // }, []);
+
+  useEffect(() => {
+    console.log("useVosk: " + useVosk);
+    if (!useVosk) return;
+    const extractText = (res: any): string => {
+      try {
+        if (typeof res === 'string') {
+          // Try to parse JSON string first, then fall back to raw text
+          try {
+            const obj = JSON.parse(res);
+            const t = (obj?.text ?? obj?.partial ?? '').toString().trim();
+            if (t) return t;
+          } catch {
+            // not JSON, use as-is
+            return res.trim?.() || String(res);
+          }
+        }
+        if (res && typeof res === 'object') {
+          const t = (res.text ?? res.partial ?? '').toString().trim();
+          if (t) return t;
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+    const subs: Array<{ remove: () => void }> = [];
+    const joinSegments = () => segmentsRef.current.join(" ").trim();
+    const updateTranscript = (partial?: string) => {
+      const base = joinSegments();
+      const tail = (partial && partial.trim()) ? ` ${partial.trim()}` : "";
+      setTranscript((base + tail).trim());
+    };
+    const s1 = voskOnPartialResult((res) => {
+      const text = extractText(res);
+      partialRef.current = text || "";
+      updateTranscript(partialRef.current);
+    });
+    subs.push(s1);
+    const s2 = voskOnResult((res) => {
+      const text = extractText(res).trim();
+      if (!text) return;
+      const last = segmentsRef.current[segmentsRef.current.length - 1];
+      if (last !== text) {
+        segmentsRef.current = [...segmentsRef.current, text];
+      }
+      partialRef.current = "";
+      updateTranscript();
+    });
+    subs.push(s2);
+    const s3 = voskOnFinalResult((res) => {
+      const text = extractText(res);
+      if (text && text.trim()) {
+        const t = text.trim();
+        const last = segmentsRef.current[segmentsRef.current.length - 1];
+        if (last !== t) {
+          segmentsRef.current = [...segmentsRef.current, t];
+        }
+      }
+      partialRef.current = "";
+      updateTranscript();
+      setStatus("Done");
+      setIsRecording(false);
+    });
+    subs.push(s3);
+    const s4 = voskOnError((err) => {
+      console.log("Error: " + String(err));
+      setStatus("Error: " + String(err));
+      
+      setIsRecording(false);
+    });
+    subs.push(s4);
+    const s5 = voskOnTimeout(() => {
+      console.log("Timeout");
+      setStatus("Timeout");
+      
+      setIsRecording(false);
+    });
+    subs.push(s5);
+    console.log(subs, "Subscriptions", );
+    return () => {
+      subs.forEach(s => {
+        try { s.remove(); } catch {}
+      });
+    };
+  }, [useVosk]);
 
   const requestPermission = async () => {
     if (Platform.OS === "android") {
@@ -114,7 +268,7 @@ export default function RecordingScreen() {
         );
         
         return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
+      } catch {
         return false;
       }
     }
@@ -131,7 +285,7 @@ export default function RecordingScreen() {
       }
 
       // Check if user can record
-      const subscriptionPlan = isProUser ? 'pro' : 'free';
+      const subscriptionPlan = 'pro';
       const { canRecord, currentCount, limit, error: usageError } = await canUserRecord(
         subscriptionPlan,
         user.id
@@ -164,9 +318,18 @@ export default function RecordingScreen() {
       setTranscript("");
       setStatus("Recording...");
       setIsRecording(true);
-      
-      await Voice.start("en-US");
-      
+      console.log(useVosk, voskReady);
+      if (useVosk && voskReady) {
+        // Use free-form recognition (no grammar). Grammar makes recognition strict and can suppress results.
+        const options = { timeout: 150000 };
+        await voskStart();
+        console.log("Vosk started with options", options);
+        setStatus("Listening...");
+        
+      } else {
+        // await Voice.start("en-US");
+        console.log("Voice started");
+      }
     } catch (error: any) {
       setIsRecording(false);
       setStatus("Error: " + (error.message || "Could not start recording"));
@@ -175,9 +338,16 @@ export default function RecordingScreen() {
 
   const stopRecording = async () => {
     try {
-      await Voice.stop();
+      if (useVosk && voskReady) {
+        await voskStop();
+        console.log("Vosk stopped")
+        setIsRecording(false);
+
+      } else {
+        // await Voice.stop();
+        console.log("Voice stopped");
+      }
     } catch (error: any) {
-      setIsRecording(false);
       setStatus("Error: " + (error.message || "Could not stop recording"));
     }
   };
@@ -194,6 +364,7 @@ export default function RecordingScreen() {
     setTranscript("");
     setStatus("Ready");
   };
+  console.log(transcript, "Transcript");
 
   return (
     <AppShell showUtilities={true}>

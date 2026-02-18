@@ -105,6 +105,10 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    aaptOptions {
+        noCompress "tflite", "mdl", "fst", "bin"  // prevents compression of large model files
+    }
 }
 
 dependencies {
