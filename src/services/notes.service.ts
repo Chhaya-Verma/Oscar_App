@@ -438,3 +438,31 @@ export async function getStarredNotes(): Promise<{
     return { notes: [], error };
   }
 }
+
+/**
+ * Get the count of notes for the current user
+ */
+export async function getNotesCount(): Promise<{
+  count: number | null;
+  error: Error | null;
+}> {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { count, error } = await supabase
+      .from('notes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    return { count, error: error as Error | null };
+  } catch (error) {
+    return { count: null, error: error as Error };
+  }
+}
