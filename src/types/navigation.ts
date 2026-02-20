@@ -7,4 +7,5 @@ export type RootStackParamList = {
   Notes: undefined;
   NoteDetail: { noteId: string };
   Settings: undefined;
+  Pricing: undefined;
 };
