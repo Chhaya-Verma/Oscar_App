@@ -216,8 +216,7 @@ export default function SettingsScreen() {
         onClose={() => setShowVocabLimitModal(false)}
         onUpgradePress={() => {
           setShowVocabLimitModal(false);
-          // TODO: Navigate to upgrade screen
-          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+          navigation.navigate("Pricing");
         }}
       />
 
@@ -538,7 +537,10 @@ export default function SettingsScreen() {
                 </View>
 
                 {!isProUser && (
-                  <Pressable style={styles.upgradeButton}>
+                  <Pressable 
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate("Pricing")}
+                  >
                     <Text style={styles.upgradeButtonText}>
                       Upgrade to Pro
                     </Text>
@@ -655,7 +657,10 @@ export default function SettingsScreen() {
                     </View>
                   </View>
 
-                  <Pressable style={styles.upgradeButton}>
+                  <Pressable 
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate('Pricing')}
+                  >
                     <Text style={styles.upgradeButtonText}>
                       Upgrade Now - Starting at ₹249/month
                     </Text>
