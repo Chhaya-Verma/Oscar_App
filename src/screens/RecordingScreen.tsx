@@ -377,8 +377,8 @@ export default function RecordingScreen() {
         onClose={() => setShowLimitModal(false)}
         onUpgradePress={() => {
           setShowLimitModal(false);
-          // Navigate to upgrade screen or open payment flow
-          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+          // Navigate to Pricing screen for upgrade
+          navigation.navigate('Pricing');
         }}
       />
 

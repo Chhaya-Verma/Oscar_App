@@ -94,3 +94,10 @@ export const SUBSCRIPTION_CONFIG = {
   FREE_MAX_VOCABULARY: 5,
   PRO_MAX_VOCABULARY: 50,
 } as const;
+
+// Pricing Configuration
+export const PRICING = {
+  MONTHLY: 249,
+  YEARLY: 2499,
+  YEARLY_SAVINGS_PERCENT: 16, // (249*12 - 2499) / (249*12) * 100 = ~16.4%
+} as const;

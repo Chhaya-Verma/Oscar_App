@@ -18,6 +18,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { VocabularyLimitModal } from "@/components/VocabularyLimitModal";
+import { UsageIndicator } from "@/components/UsageIndicator";
 import { vocabularyService } from "@/services/vocabulary.service";
 import type { VocabularyEntry } from "@/types/vocabulary.types";
 import { SUBSCRIPTION_CONFIG, ERROR_MESSAGES } from "@/constants";
@@ -30,7 +31,15 @@ type SettingsScreenNavigationProp = NativeStackNavigationProp<
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const { user } = useAuth();
-  const { isProUser } = useSubscription();
+  const {
+    isProUser,
+    recordingsThisMonth,
+    recordingsLimit,
+    notesCount,
+    notesLimit,
+    vocabularyCount,
+    vocabularyLimit: subscriptionVocabLimit,
+  } = useSubscription();
 
   const [activeTab, setActiveTab] = useState("vocabulary");
   const [vocabulary, setVocabulary] = useState<VocabularyEntry[]>([]);
@@ -207,8 +216,7 @@ export default function SettingsScreen() {
         onClose={() => setShowVocabLimitModal(false)}
         onUpgradePress={() => {
           setShowVocabLimitModal(false);
-          // TODO: Navigate to upgrade screen
-          Alert.alert('Coming Soon', 'Pro subscription upgrade coming soon!');
+          navigation.navigate("Pricing");
         }}
       />
 
@@ -491,151 +499,174 @@ export default function SettingsScreen() {
           {/* Billing Tab Content */}
           {activeTab === "billing" && (
             <View style={styles.tabContent}>
-              {/* Free Plan Card */}
+              {/* Current Plan Status Card */}
               <View style={styles.card}>
                 <View style={styles.billingHeader}>
-                  <View style={styles.billingIcon}>
+                  <View
+                    style={[
+                      styles.billingIcon,
+                      isProUser && styles.proIcon,
+                    ]}
+                  >
                     <Icon
                       name="crown"
                       size={24}
-                      color="#9ca3af"
+                      color={isProUser ? "#06b6d4" : "#9ca3af"}
                     />
                   </View>
                   <View style={styles.billingInfo}>
-                    <Text style={styles.billingTitle}>Free Plan</Text>
-                    <Text style={styles.billingSubtitle}>
-                      Current Plan
+                    <Text
+                      style={[
+                        styles.billingTitle,
+                        isProUser && styles.proTitle,
+                      ]}
+                    >
+                      {isProUser ? "Pro Plan" : "Free Plan"}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.billingSubtitle,
+                        isProUser && styles.proSubtitle,
+                      ]}
+                    >
+                      {isProUser
+                        ? "₹249/month"
+                        : "No payment required"}
                     </Text>
                   </View>
                 </View>
 
-                <Text style={styles.billingDescription}>
-                  Get started with basic features to record and format your notes.
-                </Text>
+                {!isProUser && (
+                  <Pressable 
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate("Pricing")}
+                  >
+                    <Text style={styles.upgradeButtonText}>
+                      Upgrade to Pro
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
 
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
+              {/* Usage Section */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
                     <Icon
-                      name="checkmark-circle"
-                      size={18}
-                      color="#9ca3af"
-                      style={styles.featureIcon}
+                      name="stats-chart"
+                      size={20}
+                      color="#06b6d4"
+                      style={styles.cardIcon}
                     />
-                    <Text style={styles.featureText}>
-                      5 recordings per month
-                    </Text>
+                    <Text style={styles.cardTitle}>Usage</Text>
                   </View>
-                  <View style={styles.featureItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={18}
-                      color="#9ca3af"
-                      style={styles.featureIcon}
-                    />
-                    <Text style={styles.featureText}>
-                      10 notes storage
-                    </Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={18}
-                      color="#9ca3af"
-                      style={styles.featureIcon}
-                    />
-                    <Text style={styles.featureText}>
-                      5 vocabulary entries
-                    </Text>
-                  </View>
+                </View>
+
+                <View style={styles.usageContainer}>
+                  <UsageIndicator
+                    type="recordings"
+                    current={recordingsThisMonth}
+                    limit={recordingsLimit}
+                    variant="full"
+                  />
+                </View>
+
+                <View style={styles.usageContainer}>
+                  <UsageIndicator
+                    type="notes"
+                    current={notesCount}
+                    limit={notesLimit}
+                    variant="full"
+                  />
+                </View>
+
+                <View style={styles.usageContainer}>
+                  <UsageIndicator
+                    type="vocabulary"
+                    current={vocabularyCount}
+                    limit={subscriptionVocabLimit}
+                    variant="full"
+                  />
                 </View>
               </View>
 
-              {/* Pro Plan Card */}
-              <View style={[styles.card, styles.proCard]}>
-                <View style={styles.billingHeader}>
-                  <View style={[styles.billingIcon, styles.proIcon]}>
-                    <Icon
-                      name="crown"
-                      size={24}
-                      color="#06b6d4"
-                    />
-                  </View>
-                  <View style={styles.billingInfo}>
-                    <Text style={[styles.billingTitle, styles.proTitle]}>Pro Plan</Text>
-                    <Text style={[styles.billingSubtitle, styles.proSubtitle]}>
-                      ₹299/month or ₹2,999/year
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.billingDescription, styles.proDescription]}>
-                  Unlock unlimited recordings, notes, and vocabulary entries with priority support.
-                </Text>
-
-                <View style={styles.benefitsList}>
-                  <View style={styles.benefitItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={20}
-                      color="#06b6d4"
-                      style={styles.benefitIcon}
-                    />
-                    <Text style={styles.benefitText}>
-                      Unlimited recordings every month
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={20}
-                      color="#06b6d4"
-                      style={styles.benefitIcon}
-                    />
-                    <Text style={styles.benefitText}>
-                      Store unlimited notes forever
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={20}
-                      color="#06b6d4"
-                      style={styles.benefitIcon}
-                    />
-                    <Text style={styles.benefitText}>
-                      Unlimited vocabulary entries
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={20}
-                      color="#06b6d4"
-                      style={styles.benefitIcon}
-                    />
-                    <Text style={styles.benefitText}>
-                      Priority AI processing
-                    </Text>
-                  </View>
-                  <View style={styles.benefitItem}>
-                    <Icon
-                      name="checkmark-circle"
-                      size={20}
-                      color="#06b6d4"
-                      style={styles.benefitIcon}
-                    />
-                    <Text style={styles.benefitText}>
-                      Priority customer support
-                    </Text>
-                  </View>
-                </View>
-
-                <Pressable style={styles.upgradeButton}>
-                  <Text style={styles.upgradeButtonText}>
-                    Upgrade to Pro
+              {/* Why Upgrade Section (for free users) */}
+              {!isProUser && (
+                <View style={styles.card}>
+                  <Text
+                    style={[styles.cardTitle, { marginBottom: 16 }]}
+                  >
+                    Why Upgrade to Pro?
                   </Text>
-                </Pressable>
-              </View>
+
+                  <View style={styles.benefitsList}>
+                    <View style={styles.benefitItem}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={18}
+                        color="#06b6d4"
+                        style={styles.benefitIcon}
+                      />
+                      <Text style={styles.benefitText}>
+                        Unlimited recordings every month
+                      </Text>
+                    </View>
+                    <View style={styles.benefitItem}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={18}
+                        color="#06b6d4"
+                        style={styles.benefitIcon}
+                      />
+                      <Text style={styles.benefitText}>
+                        Store unlimited notes forever
+                      </Text>
+                    </View>
+                    <View style={styles.benefitItem}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={18}
+                        color="#06b6d4"
+                        style={styles.benefitIcon}
+                      />
+                      <Text style={styles.benefitText}>
+                        Unlimited vocabulary entries
+                      </Text>
+                    </View>
+                    <View style={styles.benefitItem}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={18}
+                        color="#06b6d4"
+                        style={styles.benefitIcon}
+                      />
+                      <Text style={styles.benefitText}>
+                        Priority AI processing
+                      </Text>
+                    </View>
+                    <View style={styles.benefitItem}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={18}
+                        color="#06b6d4"
+                        style={styles.benefitIcon}
+                      />
+                      <Text style={styles.benefitText}>
+                        Priority customer support
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Pressable 
+                    style={styles.upgradeButton}
+                    onPress={() => navigation.navigate('Pricing')}
+                  >
+                    <Text style={styles.upgradeButtonText}>
+                      Upgrade Now - Starting at ₹249/month
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
@@ -937,7 +968,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: "rgba(6, 182, 212, 0.2)",
+    backgroundColor: "rgba(6, 182, 212, 0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1017,5 +1048,11 @@ const styles = StyleSheet.create({
   },
   proDescription: {
     color: "#d1d5db",
+  },
+  usageContainer: {
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(51, 65, 85, 0.3)",
   },
 });
